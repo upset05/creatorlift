@@ -18,7 +18,7 @@ DB_FILE = 'db.json'
 
 def load_db():
     if not os.path.exists(DB_FILE):
-        return {"orders": [], "active_target": "@MrBeast", "stats": {"revenue": 0, "hours": 0}}
+        return {"orders": [], "active_target": "@CreatorLift", "stats": {"revenue": 0, "hours": 0}}
     with open(DB_FILE, 'r') as f:
         return json.load(f)
 
@@ -180,10 +180,10 @@ def activate_order():
 @app.route('/api/admin/reset-network', methods=['POST'])
 def reset_network():
     if not session.get('logged_in'): return jsonify({"error": "Unauthorized"}), 401
-    # Reset to default MrBeast content or empty
-    if update_network_content("@MrBeast"):
+    # Reset to default content
+    if update_network_content("@CreatorLift"):
         db = load_db()
-        db["active_target"] = "@MrBeast"
+        db["active_target"] = "@CreatorLift"
         save_db(db)
         return jsonify({"success": True})
     return jsonify({"success": False})

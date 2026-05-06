@@ -1,23 +1,6 @@
 {
-    "orders": [
-        {
-            "id": 1,
-            "email": "lovedan282@gmail.com",
-            "video_url": "https://www.youtube.com/shorts/_Fypqm2sWIs",
-            "plan": "Monetization King (\u20a685k)",
-            "status": "unpaid"
-        },
-        {
-            "id": 2,
-            "email": "test@example.com",
-            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            "plan": "Viral Accelerator (\u20a645k)",
-            "status": "paid",
-            "reference": "T204380741451191",
-            "amount": 45000.0
-        }
-    ],
-    "active_target": "@MrBeast",
+    "orders": [],
+    "active_target": "@CreatorLift",
     "stats": {
         "revenue": 0,
         "hours": 0

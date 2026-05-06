@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = '/api';
 // Scroll Reveal Animation
 const observerOptions = {
     threshold: 0.1
