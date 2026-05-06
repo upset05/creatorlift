@@ -6,6 +6,15 @@
             "video_url": "https://www.youtube.com/shorts/_Fypqm2sWIs",
             "plan": "Monetization King (\u20a685k)",
             "status": "unpaid"
+        },
+        {
+            "id": 2,
+            "email": "test@example.com",
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "plan": "Viral Accelerator (\u20a645k)",
+            "status": "paid",
+            "reference": "T204380741451191",
+            "amount": 45000.0
         }
     ],
     "active_target": "@MrBeast",

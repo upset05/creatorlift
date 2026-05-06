@@ -108,10 +108,10 @@
                 <form id="paymentForm">
                     <div class="form-group">
                         <label>Select Plan</label>
-                        <select style="width: 100%; padding: 1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white;">
-                            <option>Starter Boost (₦15k)</option>
-                            <option selected>Viral Accelerator (₦45k)</option>
-                            <option>Monetization King (₦85k)</option>
+                        <select id="planSelect" style="width: 100%; padding: 1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white; cursor: pointer; appearance: none;">
+                            <option value="Starter Boost (₦15k)">Starter Boost (₦15k)</option>
+                            <option value="Viral Accelerator (₦45k)" selected>Viral Accelerator (₦45k)</option>
+                            <option value="Monetization King (₦85k)">Monetization King (₦85k)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -126,7 +126,7 @@
                     <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid rgba(139, 92, 246, 0.2);">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                             <span>Total Due:</span>
-                            <span style="font-weight: 700; color: var(--primary-glow);">₦45,000</span>
+                            <span id="totalDue" style="font-weight: 700; color: var(--primary-glow); font-size: 1.2rem;">₦45,000</span>
                         </div>
                         <p style="font-size: 0.8rem; color: var(--text-secondary);">Promotion begins automatically within 12 hours of payment confirmation.</p>
                     </div>

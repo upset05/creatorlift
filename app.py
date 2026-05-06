@@ -4,6 +4,7 @@ import json
 import os
 import googleapiclient.discovery
 import re
+import requests
 
 app = Flask(__name__, static_folder='.')
 CORS(app)
@@ -12,6 +13,7 @@ app.secret_key = 'creatorlift_secret_key'
 # --- CONFIG ---
 API_KEY = "AIzaSyAkegt5QFnP_7pWolYrwPe0OyjFnysNps8"
 ADMIN_PASSWORD = "admin123" 
+PAYSTACK_SECRET_KEY = "sk_test_88064636e36c88cc41d0f68d21d1c4b072a96380"
 DB_FILE = 'db.json'
 
 def load_db():
@@ -103,17 +105,40 @@ def send_static(path):
 @app.route('/api/order', methods=['POST'])
 def place_order():
     data = request.json
-    db = load_db()
-    new_order = {
-        "id": len(db["orders"]) + 1,
-        "email": data['email'],
-        "video_url": data['video_url'],
-        "plan": data['plan'],
-        "status": "unpaid"
+    reference = data.get('reference')
+    
+    # 1. Verify Payment with Paystack
+    headers = {
+        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+        "Content-Type": "application/json"
     }
-    db["orders"].append(new_order)
-    save_db(db)
-    return jsonify({"success": True})
+    verify_url = f"https://api.paystack.co/transaction/verify/{reference}"
+    
+    try:
+        response = requests.get(verify_url, headers=headers)
+        res_data = response.json()
+        
+        if not res_data.get('status') or res_data['data']['status'] != 'success':
+            return jsonify({"success": False, "message": "Payment verification failed"}), 400
+            
+        # 2. If verified, save order
+        db = load_db()
+        new_order = {
+            "id": len(db["orders"]) + 1,
+            "email": data['email'],
+            "video_url": data['video_url'],
+            "plan": data['plan'],
+            "status": "paid",
+            "reference": reference,
+            "amount": res_data['data']['amount'] / 100 # Convert back from Kobo
+        }
+        db["orders"].append(new_order)
+        save_db(db)
+        return jsonify({"success": True})
+        
+    except Exception as e:
+        print(f"Payment Verification Error: {e}")
+        return jsonify({"success": False, "message": "Internal error during verification"}), 500
 
 @app.route('/api/admin/login', methods=['POST'])
 def login():

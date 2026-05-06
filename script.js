@@ -39,7 +39,7 @@ if (paymentForm) {
         if (planName.includes('45k')) amount = 45000 * 100;
         if (planName.includes('85k')) amount = 85000 * 100;
 
-        const PAYSTACK_PUBLIC_KEY = 'pk_test_your_key_here'; // REPLACE THIS WITH YOUR KEY
+        const PAYSTACK_PUBLIC_KEY = 'pk_test_3068412269896bd3f923c070d8c645118979fcf6'; 
 
         const handler = PaystackPop.setup({
             key: PAYSTACK_PUBLIC_KEY,
@@ -77,6 +77,20 @@ if (paymentForm) {
     });
 }
 
+// Update Total Due display when plan changes
+const planSelect = document.getElementById('planSelect');
+const totalDue = document.getElementById('totalDue');
+
+if (planSelect && totalDue) {
+    planSelect.addEventListener('change', () => {
+        const plan = planSelect.value;
+        let priceText = '₦15,000';
+        if (plan.includes('45k')) priceText = '₦45,000';
+        if (plan.includes('85k')) priceText = '₦85,000';
+        totalDue.textContent = priceText;
+    });
+}
+
 // Smooth scrolling for anchor links
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
@@ -98,6 +112,17 @@ async function loadNetworkVideos() {
         if (!response.ok) throw new Error('No video data found');
         
         const videos = await response.json();
+        
+        if (videos.length === 0) {
+            grid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 4rem; background: rgba(255,255,255,0.02); border-radius: 24px; border: 1px dashed var(--glass-border);">
+                    <i class="fas fa-rocket" style="font-size: 3rem; color: var(--primary-glow); margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <h3>Network Initializing...</h3>
+                    <p style="color: var(--text-secondary);">Your campaign will appear here once activated by our team.</p>
+                </div>
+            `;
+            return;
+        }
         
         // Clear existing static cards
         grid.innerHTML = '';
