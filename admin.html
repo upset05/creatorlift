@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CreatorLift Admin | Enterprise Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --sidebar-width: 280px;
+        }
+
+        body {
+            background-color: #020202;
+            overflow-x: hidden;
+        }
+
+        /* Premium Dashboard Layout */
+        .admin-layout {
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Glassmorphism */
+        .sidebar {
+            background: rgba(15, 15, 15, 0.8);
+            backdrop-filter: blur(30px);
+            border-right: 1px solid var(--glass-border);
+            padding: 2.5rem;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 1rem 1.2rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 14px;
+            margin-bottom: 0.5rem;
+            transition: 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: rgba(139, 92, 246, 0.1);
+            color: white;
+            box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.1);
+        }
+
+        .nav-link i {
+            font-size: 1.2rem;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            padding: 3rem;
+            background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.05), transparent);
+        }
+
+        /* Stat Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            padding: 2rem;
+            border-radius: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--accent-gradient);
+            opacity: 0.3;
+        }
+
+        .stat-card h4 {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            font-family: 'Outfit';
+        }
+
+        /* Table Design */
+        .data-section {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        tr {
+            transition: 0.3s;
+        }
+
+        td {
+            padding: 1.5rem;
+            background: rgba(255,255,255,0.02);
+            border-top: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        td:first-child { border-left: 1px solid var(--glass-border); border-radius: 16px 0 0 16px; }
+        td:last-child { border-right: 1px solid var(--glass-border); border-radius: 0 16px 16px 0; }
+
+        .status-pill {
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-active { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+        .status-unpaid { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+        /* Login Overlay */
+        #loginOverlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            padding: 4rem;
+            border-radius: 40px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            width: 450px;
+        }
+    </style>
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginOverlay">
+        <div class="login-card">
+            <div class="logo" style="font-family: 'Outfit'; font-size: 2.5rem; font-weight: 700; margin-bottom: 2rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">CreatorLift</div>
+            <h2 style="margin-bottom: 2rem;">Admin Access</h2>
+            <input type="password" id="adminPass" placeholder="Enter Security Key" style="width: 100%; padding: 1.2rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 16px; color: white; margin-bottom: 2rem; font-size: 1rem; text-align: center;">
+            <button onclick="login()" class="btn btn-primary" style="width: 100%; padding: 1.2rem;">Verify & Enter</button>
+            <p id="loginError" style="color: #ef4444; margin-top: 1.5rem; display: none; font-size: 0.9rem;">Authentication Failed.</p>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div class="admin-layout" id="mainDashboard" style="display: none;">
+        <aside class="sidebar">
+            <div class="logo" style="font-family: 'Outfit'; font-size: 1.8rem; font-weight: 700; margin-bottom: 3rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">CreatorLift</div>
+            
+            <nav style="flex-grow: 1;">
+                <a href="#" class="nav-link active" onclick="showTab('overview')"><i class="fas fa-th-large"></i> Overview</a>
+                <a href="#" class="nav-link" onclick="showTab('testcenter')"><i class="fas fa-flask"></i> Test Center</a>
+                <a href="#" class="nav-link" onclick="showTab('payments')"><i class="fas fa-credit-card"></i> Payment Setup</a>
+            </nav>
+
+            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 20px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                <h4 style="font-size: 0.75rem; margin-bottom: 1rem; color: var(--text-secondary);">SWITCH TARGET</h4>
+                <input type="text" id="targetInput" placeholder="@Handle" style="width: 100%; padding: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 10px; color: white; font-size: 0.8rem; margin-bottom: 1rem;">
+                <button onclick="updateTarget()" class="btn btn-primary" style="width: 100%; padding: 0.6rem; font-size: 0.8rem;">Apply</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div id="tab-overview" class="tab-page">
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4rem;">
+                <div>
+                    <h1 style="font-size: 2.5rem; font-family: 'Outfit';">Business Console</h1>
+                    <p style="color: var(--text-secondary);">Monitoring system health and active promotions.</p>
+                </div>
+                <button class="action-btn" onclick="loadData()"><i class="fas fa-sync-alt"></i> Sync Data</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>Total Gross Revenue</h4>
+                    <div class="stat-value" id="totalRev">₦0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Active Network Target</h4>
+                    <div class="stat-value" id="activeTarget" style="font-size: 1.4rem; color: var(--secondary-glow);">@None</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Open Orders</h4>
+                    <div class="stat-value" id="pendingOrders">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Engagement Score</h4>
+                    <div class="stat-value" style="color: #22c55e;">94%</div>
+                </div>
+            </div>
+
+            <div class="data-section">
+                <h3 style="margin-bottom: 2rem; font-family: 'Outfit';">Live Order Stream</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Creator</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Control</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminTableBody">
+                        <!-- Data Feed -->
+                    </tbody>
+                </table>
+            </div>
+            </div>
+
+            <!-- TEST CENTER TAB -->
+            <div id="tab-testcenter" class="tab-page" style="display: none;">
+                <h1 style="font-family: 'Outfit'; margin-bottom: 1rem;">Internal Test Center</h1>
+                <p style="color: var(--text-secondary); margin-bottom: 3rem;">Run a zero-cost test to verify the network display.</p>
+                
+                <div class="card" style="max-width: 600px; padding: 2rem;">
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">YouTube Video URL</label>
+                        <input type="text" id="testVideoUrl" placeholder="https://youtube.com/..." style="width: 100%; padding: 1rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white;">
+                    </div>
+                    <button onclick="runTest()" class="btn btn-primary" style="width: 100%;">Run Free Test Drive</button>
+                    <button onclick="resetNetwork()" class="action-btn" style="width: 100%; margin-top: 1rem; border-color: #ef4444; color: #ef4444;">Reset Network to Default</button>
+                </div>
+            </div>
+
+            <!-- PAYMENT SETUP TAB -->
+            <div id="tab-payments" class="tab-page" style="display: none;">
+                <h1 style="font-family: 'Outfit'; margin-bottom: 1rem;">Payment Configuration</h1>
+                <p style="color: var(--text-secondary); margin-bottom: 3rem;">Manage your Paystack/Stripe payment links.</p>
+                
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                    <div class="card" style="padding: 2rem;">
+                        <h3 style="margin-bottom: 1rem;">Starter Boost (₦15k)</h3>
+                        <input type="text" placeholder="Paste Paystack Link Here" style="width:100%; padding: 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 10px; color: white;">
+                    </div>
+                    <div class="card" style="padding: 2rem;">
+                        <h3 style="margin-bottom: 1rem;">Viral Accelerator (₦45k)</h3>
+                        <input type="text" placeholder="Paste Paystack Link Here" style="width:100%; padding: 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 10px; color: white;">
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="margin-top: 3rem; padding: 1rem 3rem;">Save Settings</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = '/api'; // Using relative path for server compatibility
+
+        async function login() {
+            const pass = document.getElementById('adminPass').value;
+            try {
+                const res = await fetch(`${API_BASE}/admin/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({password: pass})
+                });
+                if (res.ok) {
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    document.getElementById('mainDashboard').style.display = 'grid';
+                    loadData();
+                } else {
+                    document.getElementById('loginError').style.display = 'block';
+                }
+            } catch (e) {
+                alert("Server not running! Please run 'python app.py' in your terminal.");
+            }
+        }
+
+        async function loadData() {
+            const res = await fetch(`${API_BASE}/admin/data`);
+            const data = await res.json();
+            
+            document.getElementById('totalRev').textContent = `₦${data.stats.revenue.toLocaleString()}`;
+            document.getElementById('activeTarget').textContent = data.active_target;
+            
+            const tbody = document.getElementById('adminTableBody');
+            tbody.innerHTML = '';
+            
+            let pendingCount = 0;
+            data.orders.forEach(order => {
+                if (order.status === 'unpaid') pendingCount++;
+                const row = `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">${order.email}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${order.video_url}</div>
+                        </td>
+                        <td>${order.plan}</td>
+                        <td><span class="status-pill ${order.status === 'unpaid' ? 'status-unpaid' : 'status-active'}">${order.status}</span></td>
+                        <td><button onclick="activateOrder(${order.id})" class="action-btn" style="border-color:var(--primary-glow)">Activate</button></td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+            document.getElementById('pendingOrders').textContent = pendingCount;
+        }
+
+        async function updateTarget() {
+            const handle = document.getElementById('targetInput').value;
+            const res = await fetch(`${API_BASE}/admin/update-target`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({handle})
+            });
+            if (res.ok) {
+                alert('Network Updated Successfully!');
+                loadData();
+            } else {
+                alert('Could not find channel.');
+            }
+        }
+
+        async function activateOrder(id) {
+            await fetch(`${API_BASE}/admin/activate`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id})
+            });
+            loadData();
+        }
+
+        // --- NEW FEATURES ---
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-page').forEach(tab => tab.style.display = 'none');
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).style.display = 'block';
+            event.currentTarget.classList.add('active');
+        }
+
+        async function runTest() {
+            const handle = document.getElementById('testVideoUrl').value;
+            if(!handle) return alert("Please enter a Video URL!");
+            const res = await fetch(`${API_BASE}/admin/update-target`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({handle})
+            });
+            if (res.ok) {
+                alert('🚀 Test Drive Active! Check your website to see your video.');
+            } else {
+                alert('Test failed. Check URL.');
+            }
+        }
+
+        async function resetNetwork() {
+            if(!confirm("Are you sure you want to reset the network to default?")) return;
+            const res = await fetch(`${API_BASE}/admin/reset-network`, {method: 'POST'});
+            if(res.ok) {
+                alert("Network Reset Successfully!");
+                loadData();
+            }
+        }
+
+        // Ambient Mouse Effect
+        document.addEventListener('mousemove', (e) => {
+            const blobs = document.querySelectorAll('.blob');
+            const x = e.clientX;
+            const y = e.clientY;
+            blobs.forEach((blob, index) => {
+                const speed = (index + 1) * 0.02;
+                const dx = (window.innerWidth / 2 - x) * speed;
+                const dy = (window.innerHeight / 2 - y) * speed;
+                blob.style.transform = `translate(${dx}px, ${dy}px)`;
+            });
+        });
+    </script>
+</body>
+</html>
