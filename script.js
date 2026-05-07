@@ -104,7 +104,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 
 // Dynamic Video Loader for Landing Page
 async function loadNetworkVideos() {
-    const grid = document.querySelector('#pricing').previousElementSibling.querySelector('.grid');
+    const grid = document.getElementById('curationGrid');
     if (!grid) return;
 
     try {
