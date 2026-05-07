@@ -39,7 +39,7 @@ if (paymentForm) {
         if (planName.includes('45k')) amount = 45000 * 100;
         if (planName.includes('85k')) amount = 85000 * 100;
 
-        const PAYSTACK_PUBLIC_KEY = 'pk_test_3068412269896bd3f923c070d8c645118979fcf6'; 
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_7f3162d6e8ef7df846b5420af9f8084a9c7be2e1'; 
 
         const handler = PaystackPop.setup({
             key: PAYSTACK_PUBLIC_KEY,

@@ -13,7 +13,7 @@ app.secret_key = 'creatorlift_secret_key'
 # --- CONFIG ---
 API_KEY = "AIzaSyAkegt5QFnP_7pWolYrwPe0OyjFnysNps8"
 ADMIN_PASSWORD = "admin123" 
-PAYSTACK_SECRET_KEY = "sk_test_88064636e36c88cc41d0f68d21d1c4b072a96380"
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', 'sk_test_placeholder_for_local_testing')
 DB_FILE = 'db.json'
 
 def load_db():
