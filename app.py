@@ -134,6 +134,14 @@ def place_order():
         }
         db["orders"].append(new_order)
         save_db(db)
+        
+        # Send receipt notification
+        send_notification(
+            data['email'], 
+            "Order Received - CreatorLift", 
+            f"Hi! We've received your payment for the {data['plan']}. Your promotion will start within 12 hours."
+        )
+        
         return jsonify({"success": True})
         
     except Exception as e:
@@ -150,7 +158,24 @@ def login():
 @app.route('/api/admin/data')
 def get_admin_data():
     if not session.get('logged_in'): return jsonify({"error": "Unauthorized"}), 401
-    return jsonify(load_db())
+    db = load_db()
+    
+    # Dynamically calculate revenue
+    total_rev = sum(order.get('amount', 0) for order in db['orders'] if order.get('status') in ['paid', 'active'])
+    db['stats']['revenue'] = total_rev
+    
+    return jsonify(db)
+
+def send_notification(email, subject, body):
+    """
+    Placeholder for email notifications.
+    In production, you would use SendGrid, Mailgun, or SMTP here.
+    """
+    print(f"--- EMAIL NOTIFICATION ---")
+    print(f"To: {email}")
+    print(f"Subject: {subject}")
+    print(f"Body: {body}")
+    print(f"--------------------------")
 
 @app.route('/api/admin/update-target', methods=['POST'])
 def update_target():
@@ -174,6 +199,14 @@ def activate_order():
                 order["status"] = "active"
                 db["active_target"] = order["video_url"]
                 save_db(db)
+                
+                # Send activation notification
+                send_notification(
+                    order['email'], 
+                    "Campaign Live! - CreatorLift", 
+                    f"Great news! Your video is now being promoted across our network. View it here: {request.host_url}watch?v={get_video_id(order['video_url'])}"
+                )
+                
                 return jsonify({"success": True})
     return jsonify({"success": False})
 

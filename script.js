@@ -164,3 +164,63 @@ document.addEventListener('mousemove', (e) => {
         blob.style.transform = `translate(${dx}px, ${dy}px)`;
     });
 });
+
+// FAQ Toggle Logic
+function toggleFaq(btn) {
+    const item = btn.parentElement;
+    const isActive = item.classList.contains('active');
+    
+    // Close all other items
+    document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('active'));
+    
+    // Toggle current item
+    if (!isActive) {
+        item.classList.add('active');
+    }
+}
+
+// Stats Counter Animation
+function animateStats() {
+    const stats = document.querySelectorAll('.stat-number');
+    stats.forEach(stat => {
+        const target = parseInt(stat.getAttribute('data-target'));
+        const suffix = stat.getAttribute('data-suffix') || '';
+        let count = 0;
+        const duration = 2000; // 2 seconds
+        const increment = target / (duration / 16); // 60fps
+        
+        const updateCount = () => {
+            count += increment;
+            if (count < target) {
+                stat.innerText = Math.floor(count).toLocaleString() + suffix;
+                requestAnimationFrame(updateCount);
+            } else {
+                stat.innerText = target.toLocaleString() + suffix;
+            }
+        };
+        updateCount();
+    });
+}
+
+// Update Intersection Observer to trigger stats animation
+const statsObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            animateStats();
+            statsObserver.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.5 });
+
+const statsBanner = document.querySelector('.stats-banner');
+if (statsBanner) statsObserver.observe(statsBanner);
+
+// WhatsApp Tooltip Pulse
+const whatsappBtn = document.getElementById('whatsappBtn');
+if (whatsappBtn) {
+    setTimeout(() => {
+        const tooltip = whatsappBtn.querySelector('.whatsapp-tooltip');
+        if (tooltip) tooltip.style.opacity = '1';
+        if (tooltip) tooltip.style.visibility = 'visible';
+    }, 3000);
+}
