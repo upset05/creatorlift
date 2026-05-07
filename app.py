@@ -167,10 +167,10 @@ def get_public_stats():
         elif 'Monetization' in plan: est_views += 50000
         
     return jsonify({
-        "creators": creators_count + 5, # Baseline of 5 for launch trust
-        "views": est_views + 25000,    # Baseline for launch trust
+        "creators": creators_count, 
+        "views": est_views,    
         "satisfaction": 99,
-        "hours": db['stats'].get('hours', 0) + 120 # Baseline
+        "hours": db['stats'].get('hours', 0)
     })
 
 @app.route('/api/admin/login', methods=['POST'])
