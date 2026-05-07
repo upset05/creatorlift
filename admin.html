@@ -269,16 +269,45 @@
 
             <!-- TEST CENTER TAB -->
             <div id="tab-testcenter" class="tab-page" style="display: none;">
-                <h1 style="font-family: 'Outfit'; margin-bottom: 1rem;">Internal Test Center</h1>
-                <p style="color: var(--text-secondary); margin-bottom: 3rem;">Run a zero-cost test to verify the network display.</p>
-                
-                <div class="card" style="max-width: 600px; padding: 2rem;">
-                    <div class="form-group" style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">YouTube Video URL</label>
-                        <input type="text" id="testVideoUrl" placeholder="https://youtube.com/..." style="width: 100%; padding: 1rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; margin-top: 1rem;">
+                    
+                    <div class="card" style="padding: 2.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);">
+                        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
+                            <div style="width: 45px; height: 45px; background: var(--accent-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                                <i class="fas fa-play"></i>
+                            </div>
+                            <div>
+                                <h3 style="font-family: 'Outfit';">Manual Promotion</h3>
+                                <p style="color: var(--text-secondary); font-size: 0.85rem;">Instantly push a video to the network.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 1.5rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">Target Video URL</label>
+                            <input type="text" id="testVideoUrl" placeholder="https://youtube.com/watch?v=..." style="width: 100%; padding: 1rem; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 12px; color: white; font-size: 0.95rem;">
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem;">
+                            <button onclick="runTest()" class="btn btn-primary" style="flex: 1; padding: 1rem;">Activate Now</button>
+                        </div>
                     </div>
-                    <button onclick="runTest()" class="btn btn-primary" style="width: 100%;">Run Free Test Drive</button>
-                    <button onclick="resetNetwork()" class="action-btn" style="width: 100%; margin-top: 1rem; border-color: #ef4444; color: #ef4444;">Reset Network to Default</button>
+
+                    <div class="card" style="padding: 2.5rem; border-color: rgba(239, 68, 68, 0.2);">
+                        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
+                            <div style="width: 45px; height: 45px; background: rgba(239, 68, 68, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #ef4444;">
+                                <i class="fas fa-undo"></i>
+                            </div>
+                            <div>
+                                <h3 style="font-family: 'Outfit';">Network Reset</h3>
+                                <p style="color: var(--text-secondary); font-size: 0.85rem;">Clear current traffic and reset to default.</p>
+                            </div>
+                        </div>
+                        
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem; line-height: 1.6;">Use this to clear all active promotions and restore the default Agency placeholder content.</p>
+                        
+                        <button onclick="resetNetwork()" class="action-btn" style="width: 100%; padding: 1rem; border-color: #ef4444; color: #ef4444; font-weight: 600;">Full Network Reset</button>
+                    </div>
+
                 </div>
             </div>
 
@@ -350,12 +379,25 @@
                         </td>
                         <td>${order.plan}</td>
                         <td><span class="status-pill ${order.status === 'unpaid' ? 'status-unpaid' : 'status-active'}">${order.status}</span></td>
-                        <td><button onclick="activateOrder(${order.id})" class="action-btn" style="border-color:var(--primary-glow)">Activate</button></td>
+                        <td style="display: flex; gap: 8px;">
+                            <button onclick="activateOrder(${order.id})" class="action-btn" style="border-color:var(--primary-glow); padding: 5px 12px;">Activate</button>
+                            <button onclick="deleteOrder(${order.id})" class="action-btn" style="border-color:#ef4444; color:#ef4444; padding: 5px 12px;"><i class="fas fa-trash"></i></button>
+                        </td>
                     </tr>
                 `;
                 tbody.insertAdjacentHTML('beforeend', row);
             });
             document.getElementById('creatorsCount').textContent = uniqueCreators.size;
+        }
+
+        async function deleteOrder(id) {
+            if (!confirm("Are you sure you want to delete this order?")) return;
+            const res = await fetch(`${API_BASE}/admin/delete-order`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: id})
+            });
+            if (res.ok) loadData();
         }
 
         async function updateManualStats() {

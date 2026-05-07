@@ -245,6 +245,15 @@ def update_stats():
     save_db(db)
     return jsonify({"success": True})
 
+@app.route('/api/admin/delete-order', methods=['POST'])
+def delete_order():
+    if not session.get('logged_in'): return jsonify({"error": "Unauthorized"}), 401
+    order_id = request.json.get('id')
+    db = load_db()
+    db["orders"] = [o for o in db["orders"] if o["id"] != order_id]
+    save_db(db)
+    return jsonify({"success": True})
+
 @app.route('/api/admin/reset-network', methods=['POST'])
 def reset_network():
     if not session.get('logged_in'): return jsonify({"error": "Unauthorized"}), 401
