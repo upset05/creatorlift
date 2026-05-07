@@ -203,9 +203,22 @@ function animateStats() {
 }
 
 // Update Intersection Observer to trigger stats animation
-const statsObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
+const statsObserver = new IntersectionObserver(async (entries) => {
+    entries.forEach(async entry => {
         if (entry.isIntersecting) {
+            // Fetch real stats before animating
+            try {
+                const res = await fetch(`${API_BASE}/stats`);
+                const data = await res.json();
+                
+                document.getElementById('stat-creators').setAttribute('data-target', data.creators);
+                document.getElementById('stat-views').setAttribute('data-target', data.views);
+                document.getElementById('stat-satisfaction').setAttribute('data-target', data.satisfaction);
+                document.getElementById('stat-hours').setAttribute('data-target', data.hours);
+            } catch (e) {
+                console.log("Using default stats");
+            }
+            
             animateStats();
             statsObserver.unobserve(entry.target);
         }

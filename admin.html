@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4998932108087321"
      crossorigin="anonymous"></script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='url(%23g)'/><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0' stop-color='%238b5cf6'/><stop offset='1' stop-color='%2306b6d4'/></linearGradient></defs><text y='.75em' x='50%' font-size='60' text-anchor='middle' fill='white' font-family='Outfit' font-weight='bold' dy='.3em'>C</text></svg>">
     <style>
         :root {
             --sidebar-width: 280px;
@@ -224,20 +225,27 @@
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <h4>Total Gross Revenue</h4>
+                    <h4>Total Revenue</h4>
                     <div class="stat-value" id="totalRev">₦0</div>
+                    <div style="font-size: 0.8rem; color: #22c55e; margin-top: 5px;"><i class="fas fa-arrow-up"></i> Growth Tracking</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Creators Served</h4>
+                    <div class="stat-value" id="creatorsCount">0</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Unique Channels</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Watch Hours Delivered</h4>
+                    <div class="stat-value" id="hoursCount">0</div>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <input type="number" id="manualHours" placeholder="+ Hours" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 4px 8px; border-radius: 6px; width: 80px; font-size: 0.8rem;">
+                        <button onclick="updateManualStats()" style="background: var(--accent-gradient); border: none; color: white; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">Update</button>
+                    </div>
                 </div>
                 <div class="stat-card">
                     <h4>Active Network Target</h4>
-                    <div class="stat-value" id="activeTarget" style="font-size: 1.4rem; color: var(--secondary-glow);">@None</div>
-                </div>
-                <div class="stat-card">
-                    <h4>Open Orders</h4>
-                    <div class="stat-value" id="pendingOrders">0</div>
-                </div>
-                <div class="stat-card">
-                    <h4>Engagement Score</h4>
-                    <div class="stat-value" style="color: #22c55e;">94%</div>
+                    <div class="stat-value" id="activeTarget" style="font-size: 1.2rem; color: var(--secondary-glow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Current Stream</div>
                 </div>
             </div>
 
@@ -323,18 +331,22 @@
             
             document.getElementById('totalRev').textContent = `₦${data.stats.revenue.toLocaleString()}`;
             document.getElementById('activeTarget').textContent = data.active_target;
+            document.getElementById('hoursCount').textContent = data.stats.hours.toLocaleString();
             
             const tbody = document.getElementById('adminTableBody');
             tbody.innerHTML = '';
             
-            let pendingCount = 0;
+            const uniqueCreators = new Set();
             data.orders.forEach(order => {
-                if (order.status === 'unpaid') pendingCount++;
+                if (order.status === 'paid' || order.status === 'active') {
+                    uniqueCreators.add(order.email);
+                }
+                
                 const row = `
                     <tr>
                         <td>
                             <div style="font-weight: 600;">${order.email}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${order.video_url}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${order.video_url}</div>
                         </td>
                         <td>${order.plan}</td>
                         <td><span class="status-pill ${order.status === 'unpaid' ? 'status-unpaid' : 'status-active'}">${order.status}</span></td>
@@ -343,7 +355,23 @@
                 `;
                 tbody.insertAdjacentHTML('beforeend', row);
             });
-            document.getElementById('pendingOrders').textContent = pendingCount;
+            document.getElementById('creatorsCount').textContent = uniqueCreators.size;
+        }
+
+        async function updateManualStats() {
+            const hours = document.getElementById('manualHours').value;
+            if (!hours) return;
+            
+            const res = await fetch(`${API_BASE}/admin/update-stats`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({hours: hours})
+            });
+            
+            if (res.ok) {
+                document.getElementById('manualHours').value = '';
+                loadData();
+            }
         }
 
         async function updateTarget() {

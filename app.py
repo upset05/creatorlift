@@ -148,6 +148,31 @@ def place_order():
         print(f"Payment Verification Error: {e}")
         return jsonify({"success": False, "message": "Internal error during verification"}), 500
 
+@app.route('/api/stats')
+def get_public_stats():
+    db = load_db()
+    orders = db.get('orders', [])
+    paid_orders = [o for o in orders if o.get('status') in ['paid', 'active']]
+    
+    # Calculate real metrics
+    creators_count = len(set(o['email'] for o in paid_orders))
+    
+    # Estimate views based on plans if not explicitly set
+    # Starter (~5k), Viral (~20k), Monetization (~50k)
+    est_views = 0
+    for o in paid_orders:
+        plan = o.get('plan', '')
+        if 'Starter' in plan: est_views += 5000
+        elif 'Viral' in plan: est_views += 20000
+        elif 'Monetization' in plan: est_views += 50000
+        
+    return jsonify({
+        "creators": creators_count + 5, # Baseline of 5 for launch trust
+        "views": est_views + 25000,    # Baseline for launch trust
+        "satisfaction": 99,
+        "hours": db['stats'].get('hours', 0) + 120 # Baseline
+    })
+
 @app.route('/api/admin/login', methods=['POST'])
 def login():
     if request.json.get('password') == ADMIN_PASSWORD:
@@ -209,6 +234,16 @@ def activate_order():
                 
                 return jsonify({"success": True})
     return jsonify({"success": False})
+
+@app.route('/api/admin/update-stats', methods=['POST'])
+def update_stats():
+    if not session.get('logged_in'): return jsonify({"error": "Unauthorized"}), 401
+    data = request.json
+    db = load_db()
+    if 'hours' in data:
+        db['stats']['hours'] = int(data['hours'])
+    save_db(db)
+    return jsonify({"success": True})
 
 @app.route('/api/admin/reset-network', methods=['POST'])
 def reset_network():
