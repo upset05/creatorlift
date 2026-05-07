@@ -1,16 +1,6 @@
 {
-    "orders": [
-        {
-            "id": 1,
-            "email": "lovedan282@gmail.com",
-            "video_url": "https://www.youtube.com/shorts/3Py0lSPyF9k",
-            "plan": "Starter Boost (\u20a615k)",
-            "status": "paid",
-            "reference": "T097289501293879",
-            "amount": 15000.0
-        }
-    ],
-    "active_target": "@CreatorLift",
+    "orders": [],
+    "active_target": "None",
     "stats": {
         "revenue": 0,
         "hours": 0
