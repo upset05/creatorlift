@@ -31,49 +31,85 @@ if (paymentForm) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Processing...';
 
-        const planName = paymentForm.querySelector('select').value;
+        const planSelect = paymentForm.querySelector('select');
+        const selectedPlan = planSelect.options[planSelect.selectedIndex];
+        const planName = planSelect.value;
         const email = document.getElementById('email').value;
         
         // Calculate price in Kobo (Naira * 100)
-        let amount = 15000 * 100; // Default
-        if (planName.includes('45k')) amount = 45000 * 100;
-        if (planName.includes('85k')) amount = 85000 * 100;
+        const amount = Number(selectedPlan.dataset.amount || 15000) * 100;
 
         const PAYSTACK_PUBLIC_KEY = 'pk_live_7f3162d6e8ef7df846b5420af9f8084a9c7be2e1'; 
 
-        const handler = PaystackPop.setup({
-            key: PAYSTACK_PUBLIC_KEY,
-            email: email,
-            amount: amount,
-            currency: 'NGN',
-            callback: function(response) {
-                // Payment successful! Now send to backend
-                fetch(`${API_BASE}/order`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        email: email,
-                        video_url: videoUrl,
-                        plan: planName,
-                        reference: response.reference
+        fetch(`${API_BASE}/campaigns`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                email: email,
+                video_url: videoUrl,
+                plan: planName
+            })
+        })
+        .then(async res => {
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Could not create campaign.');
+
+            const handler = PaystackPop.setup({
+                key: PAYSTACK_PUBLIC_KEY,
+                email: email,
+                amount: amount,
+                currency: 'NGN',
+                metadata: {
+                    campaign_id: data.campaign_id,
+                    tracking_code: data.tracking_code,
+                    plan: planName
+                },
+                callback: function(response) {
+                    fetch(`${API_BASE}/order`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            campaign_id: data.campaign_id,
+                            tracking_code: data.tracking_code,
+                            email: email,
+                            video_url: videoUrl,
+                            plan: planName,
+                            reference: response.reference
+                        })
                     })
-                }).then(() => {
-                    paymentForm.style.display = 'none';
-                    paymentFeedback.innerHTML = `
-                        <i class="fas fa-check-circle" style="font-size: 3rem; color: #22c55e; margin-bottom: 1rem;"></i>
-                        <h3>Payment Received!</h3>
-                        <p>Our agency is now preparing your campaign. Check your email for details.</p>
-                    `;
-                    paymentFeedback.style.display = 'block';
-                });
-            },
-            onClose: function() {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Pay & Start Promotion';
-                alert('Transaction was not completed.');
-            }
+                    .then(async verifyRes => {
+                        const verifyData = await verifyRes.json();
+                        if (!verifyRes.ok || !verifyData.success) {
+                            throw new Error(verifyData.message || 'Payment verification failed.');
+                        }
+                        paymentForm.style.display = 'none';
+                        paymentFeedback.innerHTML = `
+                            <i class="fas fa-check-circle" style="font-size: 3rem; color: #22c55e; margin-bottom: 1rem;"></i>
+                            <h3>Payment Received!</h3>
+                            <p>Our team will review your video and campaign details before setup.</p>
+                            <a href="${verifyData.tracking_url}" class="btn btn-primary" style="margin-top: 1.5rem;">Track Campaign</a>
+                        `;
+                        paymentFeedback.style.display = 'block';
+                    })
+                    .catch(err => {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Pay & Submit for Review';
+                        alert(err.message);
+                    });
+                },
+                onClose: function() {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Pay & Submit for Review';
+                    alert('Transaction was not completed. Your campaign is saved as pending payment.');
+                }
+            });
+            handler.openIframe();
+        })
+        .catch(err => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Pay & Submit for Review';
+            alert(err.message);
         });
-        handler.openIframe();
     });
 }
 
@@ -82,13 +118,35 @@ const planSelect = document.getElementById('planSelect');
 const totalDue = document.getElementById('totalDue');
 
 if (planSelect && totalDue) {
-    planSelect.addEventListener('change', () => {
-        const plan = planSelect.value;
-        let priceText = '₦15,000';
-        if (plan.includes('45k')) priceText = '₦45,000';
-        if (plan.includes('85k')) priceText = '₦85,000';
-        totalDue.textContent = priceText;
+    const formatNaira = (amount) => `\u20a6${Number(amount).toLocaleString()}`;
+    const updateTotalDue = () => {
+        const selectedPlan = planSelect.options[planSelect.selectedIndex];
+        totalDue.textContent = formatNaira(selectedPlan.dataset.amount || 15000);
+    };
+
+    planSelect.addEventListener('change', updateTotalDue);
+    updateTotalDue();
+
+    document.querySelectorAll('.plan-cta').forEach(button => {
+        button.addEventListener('click', () => {
+            const plan = button.dataset.plan;
+            const option = Array.from(planSelect.options).find(item => item.value === plan);
+            if (option) {
+                planSelect.value = option.value;
+                updateTotalDue();
+            }
+        });
     });
+}
+
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    }[char]));
 }
 
 // Smooth scrolling for anchor links
@@ -96,9 +154,12 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
         e.preventDefault();
 
-        document.querySelector(this.getAttribute('href')).scrollIntoView({
-            behavior: 'smooth'
-        });
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
     });
 });
 
@@ -108,17 +169,18 @@ async function loadNetworkVideos() {
     if (!grid) return;
 
     try {
-        const response = await fetch('videos.json');
-        if (!response.ok) throw new Error('No video data found');
+        const response = await fetch(`${API_BASE}/curation`);
+        if (!response.ok) throw new Error('No campaign data found');
         
-        const videos = await response.json();
+        const data = await response.json();
+        const videos = data.campaigns || [];
         
         if (videos.length === 0) {
             grid.innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; padding: 4rem; background: rgba(255,255,255,0.02); border-radius: 24px; border: 1px dashed var(--glass-border);">
-                    <i class="fas fa-rocket" style="font-size: 3rem; color: var(--primary-glow); margin-bottom: 1rem; opacity: 0.5;"></i>
-                    <h3>Network Initializing...</h3>
-                    <p style="color: var(--text-secondary);">Your campaign will appear here once activated by our team.</p>
+                <div class="empty-state">
+                    <i class="fas fa-video" aria-hidden="true"></i>
+                    <h3>No active featured videos yet</h3>
+                    <p>Eligible campaigns appear here after review, setup, and curation approval.</p>
                 </div>
             `;
             return;
@@ -130,14 +192,14 @@ async function loadNetworkVideos() {
         // Add new dynamic cards
         videos.forEach(video => {
             const card = document.createElement('a');
-            card.href = `watch.html?v=${video.id}`;
+            card.href = `watch.html?campaign=${encodeURIComponent(video.tracking_code)}`;
             card.className = 'card reveal';
             card.style.textDecoration = 'none';
             card.style.textAlign = 'center';
             card.innerHTML = `
-                <img src="${video.thumbnail}" style="width: 100%; border-radius: 12px; margin-bottom: 1rem;">
-                <h3>${video.title}</h3>
-                <p>By ${video.creator} • Promoted</p>
+                <img src="${escapeHtml(video.thumbnail)}" alt="" style="width: 100%; border-radius: 12px; margin-bottom: 1rem;">
+                <h3>${escapeHtml(video.video_title || 'Featured Creator Video')}</h3>
+                <p>${escapeHtml(video.curation_category || 'Creator Campaign')} &bull; Reviewed placement</p>
             `;
             grid.appendChild(card);
             
@@ -145,7 +207,13 @@ async function loadNetworkVideos() {
             observer.observe(card);
         });
     } catch (err) {
-        console.log('Using static demo data (Run ingest.py to update)');
+        grid.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-video" aria-hidden="true"></i>
+                <h3>Curation hub is unavailable</h3>
+                <p>Please refresh later to see approved campaign placements.</p>
+            </div>
+        `;
     }
 }
 
@@ -178,55 +246,6 @@ function toggleFaq(btn) {
         item.classList.add('active');
     }
 }
-
-// Stats Counter Animation
-function animateStats() {
-    const stats = document.querySelectorAll('.stat-number');
-    stats.forEach(stat => {
-        const target = parseInt(stat.getAttribute('data-target'));
-        const suffix = stat.getAttribute('data-suffix') || '';
-        let count = 0;
-        const duration = 2000; // 2 seconds
-        const increment = target / (duration / 16); // 60fps
-        
-        const updateCount = () => {
-            count += increment;
-            if (count < target) {
-                stat.innerText = Math.floor(count).toLocaleString() + suffix;
-                requestAnimationFrame(updateCount);
-            } else {
-                stat.innerText = target.toLocaleString() + suffix;
-            }
-        };
-        updateCount();
-    });
-}
-
-// Update Intersection Observer to trigger stats animation
-const statsObserver = new IntersectionObserver(async (entries) => {
-    entries.forEach(async entry => {
-        if (entry.isIntersecting) {
-            // Fetch real stats before animating
-            try {
-                const res = await fetch(`${API_BASE}/stats`);
-                const data = await res.json();
-                
-                document.getElementById('stat-creators').setAttribute('data-target', data.creators);
-                document.getElementById('stat-views').setAttribute('data-target', data.views);
-                document.getElementById('stat-satisfaction').setAttribute('data-target', data.satisfaction);
-                document.getElementById('stat-hours').setAttribute('data-target', data.hours);
-            } catch (e) {
-                console.log("Using default stats");
-            }
-            
-            animateStats();
-            statsObserver.unobserve(entry.target);
-        }
-    });
-}, { threshold: 0.5 });
-
-const statsBanner = document.querySelector('.stats-banner');
-if (statsBanner) statsObserver.observe(statsBanner);
 
 // WhatsApp Tooltip Pulse
 const whatsappBtn = document.getElementById('whatsappBtn');

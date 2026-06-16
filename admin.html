@@ -153,10 +153,137 @@
             border-radius: 50px;
             font-size: 0.75rem;
             font-weight: 600;
+            display: inline-flex;
+            white-space: nowrap;
         }
 
         .status-active { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
         .status-unpaid { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+        .status-pending_payment { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; }
+        .status-paid_pending_review { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+        .status-approved_for_setup { background: rgba(6, 182, 212, 0.12); color: #06b6d4; }
+        .status-rejected_refunded { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+        .status-campaign_active { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+        .status-campaign_completed { background: rgba(139, 92, 246, 0.14); color: #c4b5fd; }
+
+        .action-btn {
+            border: 1px solid var(--glass-border);
+            color: white;
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: 0.2s;
+        }
+
+        .action-btn:hover {
+            border-color: var(--primary-glow);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .admin-controls {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) 220px auto;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .admin-input,
+        .admin-select,
+        .admin-textarea {
+            width: 100%;
+            padding: 0.9rem 1rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: white;
+            font-size: 0.92rem;
+        }
+
+        .admin-textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .detail-panel {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+        }
+
+        .detail-thumb {
+            width: 100%;
+            border-radius: 18px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 1rem;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .meta-box {
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1rem;
+            overflow: hidden;
+        }
+
+        .meta-box span {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.35rem;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .update-log {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .update-log-item {
+            background: rgba(0,0,0,0.22);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        .campaign-row {
+            cursor: pointer;
+        }
+
+        .campaign-row:hover td {
+            background: rgba(139, 92, 246, 0.06);
+        }
 
         /* Login Overlay */
         #loginOverlay {
@@ -176,6 +303,24 @@
             border: 1px solid var(--glass-border);
             text-align: center;
             width: 450px;
+        }
+
+        @media (max-width: 900px) {
+            .admin-layout {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+            }
+            .main-content {
+                padding: 1.5rem;
+            }
+            .admin-controls,
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -200,15 +345,14 @@
             <div class="logo" style="font-family: 'Outfit'; font-size: 1.8rem; font-weight: 700; margin-bottom: 3rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">CreatorLift</div>
             
             <nav style="flex-grow: 1;">
-                <a href="#" class="nav-link active" onclick="showTab('overview')"><i class="fas fa-th-large"></i> Overview</a>
-                <a href="#" class="nav-link" onclick="showTab('testcenter')"><i class="fas fa-flask"></i> Test Center</a>
-                <a href="#" class="nav-link" onclick="showTab('payments')"><i class="fas fa-credit-card"></i> Payment Setup</a>
+                <a href="#" class="nav-link active" onclick="showTab('overview', this)"><i class="fas fa-th-large"></i> Campaigns</a>
+                <a href="#" class="nav-link" onclick="showTab('curation', this)"><i class="fas fa-video"></i> Curation Hub</a>
+                <a href="#" class="nav-link" onclick="showTab('payments', this)"><i class="fas fa-credit-card"></i> Payment Setup</a>
             </nav>
 
             <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 20px; border: 1px solid rgba(139, 92, 246, 0.2);">
-                <h4 style="font-size: 0.75rem; margin-bottom: 1rem; color: var(--text-secondary);">SWITCH TARGET</h4>
-                <input type="text" id="targetInput" placeholder="@Handle" style="width: 100%; padding: 0.8rem; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 10px; color: white; font-size: 0.8rem; margin-bottom: 1rem;">
-                <button onclick="updateTarget()" class="btn btn-primary" style="width: 100%; padding: 0.6rem; font-size: 0.8rem;">Apply</button>
+                <h4 style="font-size: 0.75rem; margin-bottom: 1rem; color: var(--text-secondary);">WORKFLOW</h4>
+                <p style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.6;">Review paid campaigns, approve setup, manage curation, and send customer updates without making performance guarantees.</p>
             </div>
         </aside>
 
@@ -217,46 +361,57 @@
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4rem;">
                 <div>
-                    <h1 style="font-size: 2.5rem; font-family: 'Outfit';">Business Console</h1>
-                    <p style="color: var(--text-secondary);">Monitoring system health and active promotions.</p>
+                    <h1 style="font-size: 2.5rem; font-family: 'Outfit';">Campaign Console</h1>
+                    <p style="color: var(--text-secondary);">Review payments, approve setup, manage statuses, and update creators.</p>
                 </div>
-                <button class="action-btn" onclick="loadData()"><i class="fas fa-sync-alt"></i> Sync Data</button>
+                <button class="action-btn" onclick="loadData()" style="padding: 0.9rem 1.25rem;"><i class="fas fa-sync-alt"></i> Sync Data</button>
             </div>
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <h4>Total Revenue</h4>
-                    <div class="stat-value" id="totalRev">₦0</div>
-                    <div style="font-size: 0.8rem; color: #22c55e; margin-top: 5px;"><i class="fas fa-arrow-up"></i> Growth Tracking</div>
+                    <h4>Total Verified Revenue</h4>
+                    <div class="stat-value" id="totalRev">NGN 0</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">From verified Paystack payments</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Creators Served</h4>
-                    <div class="stat-value" id="creatorsCount">0</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Unique Channels</div>
+                    <h4>Total Campaigns</h4>
+                    <div class="stat-value" id="campaignCount">0</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">All submitted campaigns</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Watch Hours Delivered</h4>
-                    <div class="stat-value" id="hoursCount">0</div>
-                    <div style="display: flex; gap: 8px; margin-top: 10px;">
-                        <input type="number" id="manualHours" placeholder="+ Hours" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 4px 8px; border-radius: 6px; width: 80px; font-size: 0.8rem;">
-                        <button onclick="updateManualStats()" style="background: var(--accent-gradient); border: none; color: white; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">Update</button>
-                    </div>
+                    <h4>Pending Review</h4>
+                    <div class="stat-value" id="pendingReviewCount">0</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Paid campaigns awaiting admin review</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Active Network Target</h4>
-                    <div class="stat-value" id="activeTarget" style="font-size: 1.2rem; color: var(--secondary-glow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Current Stream</div>
+                    <h4>Curation Approved</h4>
+                    <div class="stat-value" id="curationCount">0</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Visible in the public hub</div>
                 </div>
             </div>
 
             <div class="data-section">
-                <h3 style="margin-bottom: 2rem; font-family: 'Outfit';">Live Order Stream</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+                    <div>
+                        <h3 style="font-family: 'Outfit';">Submitted Campaigns</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Search by email, video URL, plan, or Paystack reference.</p>
+                    </div>
+                </div>
+                <div class="admin-controls">
+                    <input id="campaignSearch" class="admin-input" type="search" placeholder="Search campaigns...">
+                    <select id="statusFilter" class="admin-select">
+                        <option value="">All statuses</option>
+                    </select>
+                    <button class="action-btn" onclick="loadData()" style="padding: 0.85rem 1.1rem;">Apply</button>
+                </div>
+                <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
-                            <th>Creator</th>
-                            <th>Plan</th>
+                            <th>Campaign</th>
+                            <th>Plan / Amount</th>
                             <th>Status</th>
+                            <th>Curation</th>
                             <th>Control</th>
                         </tr>
                     </thead>
@@ -264,12 +419,41 @@
                         <!-- Data Feed -->
                     </tbody>
                 </table>
+                </div>
+                <div id="campaignDetail" class="detail-panel" style="display: none;"></div>
             </div>
             </div>
 
-            <!-- TEST CENTER TAB -->
-            <div id="tab-testcenter" class="tab-page" style="display: none;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; margin-top: 1rem;">
+            <!-- CURATION TAB -->
+            <div id="tab-curation" class="tab-page" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                    <div>
+                        <h1 style="font-family: 'Outfit';">Curation Hub Placements</h1>
+                        <p style="color: var(--text-secondary);">Campaigns approved here are pulled into the public curation hub from the database.</p>
+                    </div>
+                    <button onclick="loadData()" class="action-btn" style="padding: 0.9rem 1.25rem;"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+
+                <div class="data-section">
+                    <h3 style="margin-bottom: 1rem; font-family: 'Outfit';">Approved Placements</h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Video</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Control</th>
+                                </tr>
+                            </thead>
+                            <tbody id="curationTableBody">
+                                <!-- Approved curation campaigns -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="display: none;">
                     
                     <div class="card" style="padding: 2.5rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);">
                         <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
@@ -313,20 +497,23 @@
 
             <!-- PAYMENT SETUP TAB -->
             <div id="tab-payments" class="tab-page" style="display: none;">
-                <h1 style="font-family: 'Outfit'; margin-bottom: 1rem;">Payment Configuration</h1>
-                <p style="color: var(--text-secondary); margin-bottom: 3rem;">Manage your Paystack/Stripe payment links.</p>
+                <h1 style="font-family: 'Outfit'; margin-bottom: 1rem;">Payment & Email Configuration</h1>
+                <p style="color: var(--text-secondary); margin-bottom: 3rem;">The checkout verifies Paystack payments on the backend. Configure secrets in environment variables before going live.</p>
                 
                 <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
                     <div class="card" style="padding: 2rem;">
-                        <h3 style="margin-bottom: 1rem;">Starter Boost (₦15k)</h3>
-                        <input type="text" placeholder="Paste Paystack Link Here" style="width:100%; padding: 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 10px; color: white;">
+                        <h3 style="margin-bottom: 1rem;">Paystack Secret</h3>
+                        <p style="color: var(--text-secondary);">Set <code>PAYSTACK_SECRET_KEY</code> on the server. Payments stay pending until backend verification succeeds.</p>
                     </div>
                     <div class="card" style="padding: 2rem;">
-                        <h3 style="margin-bottom: 1rem;">Viral Accelerator (₦45k)</h3>
-                        <input type="text" placeholder="Paste Paystack Link Here" style="width:100%; padding: 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 10px; color: white;">
+                        <h3 style="margin-bottom: 1rem;">Admin Login</h3>
+                        <p style="color: var(--text-secondary);">Set <code>CREATORLIFT_ADMIN_PASSWORD</code> or <code>ADMIN_PASSWORD</code>. Hard-coded admin passwords are no longer used.</p>
+                    </div>
+                    <div class="card" style="padding: 2rem;">
+                        <h3 style="margin-bottom: 1rem;">Email Notifications</h3>
+                        <p style="color: var(--text-secondary);">Set <code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_USER</code>, <code>SMTP_PASSWORD</code>, and <code>SMTP_FROM</code>. Without SMTP, notifications are logged in <code>db.json</code>.</p>
                     </div>
                 </div>
-                <button class="btn btn-primary" style="margin-top: 3rem; padding: 1rem 3rem;">Save Settings</button>
             </div>
         </main>
     </div>
@@ -484,6 +671,346 @@
                 blob.style.transform = `translate(${dx}px, ${dy}px)`;
             });
         });
+    </script>
+    <script>
+        window.campaigns = [];
+        window.selectedCampaignId = null;
+        window.statuses = [
+            'pending_payment',
+            'paid_pending_review',
+            'approved_for_setup',
+            'rejected_refunded',
+            'campaign_active',
+            'campaign_completed'
+        ];
+
+        function escapeHtml(value) {
+            return String(value || '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char]));
+        }
+
+        function statusLabel(status) {
+            return String(status || '').replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+        }
+
+        function formatMoney(amount) {
+            return `NGN ${Number(amount || 0).toLocaleString()}`;
+        }
+
+        function populateStatusFilter() {
+            const filter = document.getElementById('statusFilter');
+            if (!filter || filter.dataset.ready) return;
+            window.statuses.forEach(status => {
+                const option = document.createElement('option');
+                option.value = status;
+                option.textContent = statusLabel(status);
+                filter.appendChild(option);
+            });
+            filter.dataset.ready = 'true';
+            document.getElementById('campaignSearch').addEventListener('input', () => {
+                clearTimeout(window.searchTimer);
+                window.searchTimer = setTimeout(loadData, 250);
+            });
+            filter.addEventListener('change', loadData);
+        }
+
+        window.login = async function login() {
+            const pass = document.getElementById('adminPass').value;
+            try {
+                const res = await fetch(`${API_BASE}/admin/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({password: pass})
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    document.getElementById('mainDashboard').style.display = 'grid';
+                    populateStatusFilter();
+                    loadData();
+                } else {
+                    const error = document.getElementById('loginError');
+                    error.textContent = data.message || 'Authentication Failed.';
+                    error.style.display = 'block';
+                }
+            } catch (e) {
+                alert("Server not running! Please run 'python app.py' in your terminal.");
+            }
+        };
+
+        window.loadData = async function loadData() {
+            populateStatusFilter();
+            const q = document.getElementById('campaignSearch')?.value || '';
+            const status = document.getElementById('statusFilter')?.value || '';
+            const params = new URLSearchParams();
+            if (q) params.set('q', q);
+            if (status) params.set('status', status);
+
+            const res = await fetch(`${API_BASE}/admin/campaigns?${params.toString()}`);
+            if (res.status === 401) {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('mainDashboard').style.display = 'none';
+                return;
+            }
+            const data = await res.json();
+            window.campaigns = data.campaigns || [];
+            window.statuses = data.statuses || window.statuses;
+
+            document.getElementById('totalRev').textContent = formatMoney(data.stats?.revenue);
+            document.getElementById('campaignCount').textContent = data.stats?.total_campaigns || 0;
+            document.getElementById('pendingReviewCount').textContent = data.stats?.pending_review || 0;
+            document.getElementById('curationCount').textContent = data.stats?.curation_approved || 0;
+
+            renderCampaignRows();
+            renderCurationRows();
+
+            if (window.selectedCampaignId) {
+                const selected = window.campaigns.find(c => Number(c.id) === Number(window.selectedCampaignId));
+                if (selected) renderCampaignDetail(selected);
+            }
+        };
+
+        function renderCampaignRows() {
+            const tbody = document.getElementById('adminTableBody');
+            tbody.innerHTML = '';
+            if (!window.campaigns.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align:center; color: var(--text-secondary); border-radius: 16px;">No campaigns match this filter.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            window.campaigns.forEach(campaign => {
+                const row = `
+                    <tr class="campaign-row" onclick="viewCampaign(${campaign.id})">
+                        <td>
+                            <div style="display:flex; align-items:center; gap: 1rem; min-width: 260px;">
+                                <img src="${escapeHtml(campaign.thumbnail)}" alt="" style="width: 74px; height: 42px; object-fit: cover; border-radius: 8px; background: #111;">
+                                <div>
+                                    <div style="font-weight: 700;">${escapeHtml(campaign.email)}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(campaign.video_url)}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>${escapeHtml(campaign.plan)}</div>
+                            <div style="font-size:0.8rem; color: var(--text-secondary);">${formatMoney(campaign.amount_paid || campaign.amount_expected)}</div>
+                        </td>
+                        <td><span class="status-pill status-${escapeHtml(campaign.status)}">${statusLabel(campaign.status)}</span></td>
+                        <td>${campaign.curation_approved ? '<span class="status-pill status-campaign_active">Approved</span>' : '<span class="status-pill status-pending_payment">Not listed</span>'}</td>
+                        <td>
+                            <button onclick="event.stopPropagation(); viewCampaign(${campaign.id})" class="action-btn" style="padding: 0.55rem 0.9rem;">Details</button>
+                        </td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        function renderCurationRows() {
+            const tbody = document.getElementById('curationTableBody');
+            if (!tbody) return;
+            const approved = window.campaigns.filter(c => c.curation_approved);
+            if (!approved.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align:center; color: var(--text-secondary); border-radius: 16px;">No curation placements approved yet.</td>
+                    </tr>
+                `;
+                return;
+            }
+            tbody.innerHTML = approved.map(campaign => `
+                <tr>
+                    <td>
+                        <div style="font-weight:700;">${escapeHtml(campaign.video_title || 'Submitted YouTube Video')}</div>
+                        <div style="font-size:0.78rem; color: var(--text-secondary);">${escapeHtml(campaign.email)}</div>
+                    </td>
+                    <td>${escapeHtml(campaign.curation_category || 'Uncategorized')}</td>
+                    <td><span class="status-pill status-${escapeHtml(campaign.status)}">${statusLabel(campaign.status)}</span></td>
+                    <td>
+                        <button onclick="showTab('overview'); viewCampaign(${campaign.id})" class="action-btn" style="padding: 0.55rem 0.9rem;">Manage</button>
+                        <a href="watch.html?campaign=${encodeURIComponent(campaign.tracking_code)}" target="_blank" class="action-btn" style="padding: 0.55rem 0.9rem; display:inline-block; text-decoration:none;">Open</a>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.viewCampaign = async function viewCampaign(id) {
+            const res = await fetch(`${API_BASE}/admin/campaigns/${id}`);
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                alert(data.message || 'Could not load campaign.');
+                return;
+            }
+            window.selectedCampaignId = id;
+            renderCampaignDetail(data.campaign);
+        };
+
+        function renderCampaignDetail(campaign) {
+            const panel = document.getElementById('campaignDetail');
+            panel.style.display = 'block';
+            const updates = campaign.customer_updates || [];
+            panel.innerHTML = `
+                <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:center;">
+                    <div>
+                        <h3 style="font-family:'Outfit'; margin-bottom:0.35rem;">Campaign #${campaign.id}</h3>
+                        <span class="status-pill status-${escapeHtml(campaign.status)}">${statusLabel(campaign.status)}</span>
+                    </div>
+                    <div class="button-row" style="margin-top:0;">
+                        <a href="${escapeHtml(campaign.video_url)}" target="_blank" class="action-btn" style="padding:0.7rem 1rem; text-decoration:none;">Open Video</a>
+                        <a href="${escapeHtml(campaign.tracking_url)}" target="_blank" class="action-btn" style="padding:0.7rem 1rem; text-decoration:none;">Tracking Page</a>
+                    </div>
+                </div>
+
+                <div class="detail-grid">
+                    <div>
+                        <img class="detail-thumb" src="${escapeHtml(campaign.thumbnail)}" alt="">
+                        <div class="button-row">
+                            <button onclick="setCampaignStatus(${campaign.id}, 'approved_for_setup')" class="action-btn" style="padding:0.7rem 1rem;">Approve</button>
+                            <button onclick="rejectCampaign(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem; border-color:#ef4444; color:#ef4444;">Reject</button>
+                            <button onclick="setCampaignStatus(${campaign.id}, 'campaign_active')" class="action-btn" style="padding:0.7rem 1rem;">Mark Active</button>
+                            <button onclick="setCampaignStatus(${campaign.id}, 'campaign_completed')" class="action-btn" style="padding:0.7rem 1rem;">Complete</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="meta-grid">
+                            <div class="meta-box"><span>Email</span>${escapeHtml(campaign.email)}</div>
+                            <div class="meta-box"><span>Plan</span>${escapeHtml(campaign.plan)}</div>
+                            <div class="meta-box"><span>Amount Paid</span>${formatMoney(campaign.amount_paid)}</div>
+                            <div class="meta-box"><span>Paystack Reference</span>${escapeHtml(campaign.paystack_reference || 'Not verified')}</div>
+                            <div class="meta-box"><span>Video ID</span>${escapeHtml(campaign.video_id)}</div>
+                            <div class="meta-box"><span>Tracking Code</span>${escapeHtml(campaign.tracking_code)}</div>
+                        </div>
+
+                        <label style="display:block; color:var(--text-secondary); margin-bottom:0.5rem;">Internal admin notes</label>
+                        <textarea id="adminNotes" class="admin-textarea">${escapeHtml(campaign.admin_notes)}</textarea>
+                        <div class="button-row">
+                            <button onclick="saveAdminNotes(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem;">Save Notes</button>
+                            <button onclick="verifyPayment(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem;">Verify Paystack</button>
+                        </div>
+
+                        <div style="margin-top:2rem;">
+                            <label style="display:block; color:var(--text-secondary); margin-bottom:0.5rem;">Customer-facing campaign update</label>
+                            <textarea id="customerUpdate" class="admin-textarea" placeholder="Write an update the creator can see on the tracking page..."></textarea>
+                            <button onclick="addCustomerUpdate(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem; margin-top:0.75rem;">Add Update & Email</button>
+                        </div>
+
+                        <div style="margin-top:2rem;">
+                            <h4 style="margin-bottom:0.75rem;">Curation Hub Placement</h4>
+                            <label style="display:flex; align-items:center; gap:0.6rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+                                <input type="checkbox" id="curationApproved" ${campaign.curation_approved ? 'checked' : ''}>
+                                Approved for public curation hub
+                            </label>
+                            <input id="curationCategory" class="admin-input" placeholder="Niche / category" value="${escapeHtml(campaign.curation_category)}">
+                            <button onclick="saveCuration(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem; margin-top:0.75rem;">Save Curation</button>
+                        </div>
+
+                        <div style="margin-top:2rem;">
+                            <h4>Customer Updates</h4>
+                            <div class="update-log">
+                                ${updates.length ? updates.map(update => `
+                                    <div class="update-log-item">
+                                        <strong>${escapeHtml(new Date(update.created_at).toLocaleString())}</strong>
+                                        <p style="margin-top:0.4rem;">${escapeHtml(update.message)}</p>
+                                    </div>
+                                `).join('') : '<div class="update-log-item">No customer-facing updates yet.</div>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            panel.scrollIntoView({behavior: 'smooth', block: 'start'});
+        }
+
+        window.setCampaignStatus = async function setCampaignStatus(id, status, reason = '') {
+            const res = await fetch(`${API_BASE}/admin/campaigns/${id}/status`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({status, reason})
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) return alert(data.message || 'Could not update status.');
+            renderCampaignDetail(data.campaign);
+            loadData();
+        };
+
+        window.rejectCampaign = function rejectCampaign(id) {
+            const reason = prompt('Reason shown to customer:', 'Campaign was not eligible for promotion.');
+            if (reason === null) return;
+            setCampaignStatus(id, 'rejected_refunded', reason);
+        };
+
+        window.saveAdminNotes = async function saveAdminNotes(id) {
+            const admin_notes = document.getElementById('adminNotes').value;
+            const res = await fetch(`${API_BASE}/admin/campaigns/${id}/notes`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({admin_notes})
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) return alert(data.message || 'Could not save notes.');
+            renderCampaignDetail(data.campaign);
+            loadData();
+        };
+
+        window.addCustomerUpdate = async function addCustomerUpdate(id) {
+            const message = document.getElementById('customerUpdate').value;
+            const res = await fetch(`${API_BASE}/admin/campaigns/${id}/updates`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message, send_email: true})
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) return alert(data.message || 'Could not add update.');
+            renderCampaignDetail(data.campaign);
+            loadData();
+        };
+
+        window.saveCuration = async function saveCuration(id) {
+            const approved = document.getElementById('curationApproved').checked;
+            const category = document.getElementById('curationCategory').value;
+            const res = await fetch(`${API_BASE}/admin/campaigns/${id}/curation`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({approved, category})
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) return alert(data.message || 'Could not save curation settings.');
+            renderCampaignDetail(data.campaign);
+            loadData();
+        };
+
+        window.verifyPayment = async function verifyPayment(id) {
+            const reference = prompt('Paystack reference to verify (leave blank to use saved reference):', '');
+            const res = await fetch(`${API_BASE}/admin/campaigns/${id}/verify-payment`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({reference})
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) return alert(data.message || 'Could not verify payment.');
+            renderCampaignDetail(data.campaign);
+            loadData();
+        };
+
+        window.showTab = function showTab(tabName, link) {
+            document.querySelectorAll('.tab-page').forEach(tab => tab.style.display = 'none');
+            document.querySelectorAll('.nav-link').forEach(item => item.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).style.display = 'block';
+            if (link) {
+                link.classList.add('active');
+            } else {
+                const fallback = Array.from(document.querySelectorAll('.nav-link')).find(item => item.textContent.toLowerCase().includes(tabName === 'overview' ? 'campaign' : tabName));
+                if (fallback) fallback.classList.add('active');
+            }
+        };
     </script>
 </body>
 </html>

@@ -121,15 +121,15 @@
                             <div style="width: 40px; height: 40px; background: var(--accent-gradient); border-radius: 50%;"></div>
                             <div>
                                 <div style="font-weight: 600;">YouTube Creator</div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Verified Partner</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Promoted Creator</div>
                             </div>
                         </div>
                         <div class="stats" style="color: var(--text-secondary); font-size: 0.9rem;">
-                            <i class="fas fa-eye"></i> <span id="viewCount">Generating views...</span>
+                            <i class="fas fa-chart-line"></i> <span id="viewCount">Campaign visibility updates in YouTube Studio</span>
                         </div>
                     </div>
                     <div id="videoDescription" style="margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6;">
-                        This video is being promoted through the CreatorLift network to accelerate watch time and channel growth. All views count directly towards the creator's monetization goals.
+                        This video is being featured through the CreatorLift curation network as part of a reviewed promotional campaign. Monetization eligibility and channel outcomes depend on YouTube's policies, viewer behavior, and channel performance.
                     </div>
                 </div>
 
@@ -141,53 +141,127 @@
                 
                 <h3 style="margin-bottom: 1.5rem; font-size: 1.2rem;">Up Next</h3>
                 <div id="upNextList">
-                    <!-- Dynamic Items -->
-                    <a href="watch.html?v=dQw4w9WgXcQ" class="up-next-item">
-                        <img src="https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg" class="thumbnail-mini">
-                        <div class="item-info">
-                            <h4>How to scale your YouTube channel in 2024</h4>
-                            <p>CreatorLift Tips</p>
-                        </div>
-                    </a>
-                    <a href="watch.html?v=jNQXAC9IVRw" class="up-next-item">
-                        <img src="https://img.youtube.com/vi/jNQXAC9IVRw/mqdefault.jpg" class="thumbnail-mini">
-                        <div class="item-info">
-                            <h4>Mastering the YouTube Algorithm</h4>
-                            <p>Growth Academy</p>
-                        </div>
-                    </a>
+                    <div style="padding: 1.5rem; border: 1px dashed var(--glass-border); border-radius: 16px; color: var(--text-secondary);">
+                        Featured videos appear here after campaign review and curation approval.
+                    </div>
                 </div>
             </aside>
         </div>
     </main>
 
-    <footer class="section" style="padding: 4rem 0; margin-top: 4rem; border-top: 1px solid var(--glass-border);">
-        <div class="container" style="display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 0.9rem;">
-            <div>&copy; 2024 CreatorLift Network.</div>
+    <footer class="section site-footer" style="margin-top: 4rem;">
+        <div class="container footer-inner">
+            <div>&copy; 2026 CreatorLift Network.</div>
+            <div class="footer-links">
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="terms.html">Terms of Service</a>
+                <a href="refund.html">Refund Policy</a>
+                <a href="contact.html">Contact / WhatsApp Support</a>
+            </div>
         </div>
     </footer>
 
     <script>
-        // Dynamic Video Loading Logic
+        const API_BASE = '/api';
+
         function getQueryParam(param) {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get(param);
         }
 
-        const videoId = getQueryParam('v') || 'dQw4w9WgXcQ'; // Default video if none provided
+        function escapeHtml(value) {
+            return String(value || '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char]));
+        }
+
         const player = document.getElementById('mainPlayer');
         const title = document.getElementById('videoTitle');
+        const description = document.getElementById('videoDescription');
+        const creatorInfo = document.getElementById('creatorInfo');
 
-        // Set the player source
-        player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
-
-        // In a real automated app, you'd fetch this from the YouTube API
-        // For now, we'll simulate it
-        if (videoId === 'dQw4w9WgXcQ') {
-            title.textContent = "Never Gonna Give You Up - Rick Astley (CreatorLift Demo)";
-        } else {
-            title.textContent = "Promoted Creator Content | Video ID: " + videoId;
+        function renderEmptyWatch(message = 'Approved campaign videos will appear here after review and curation setup.') {
+            if (player) player.remove();
+            document.querySelector('.player-wrapper').innerHTML = `
+                <div style="height: 100%; display: flex; align-items: center; justify-content: center; padding: 2rem; color: var(--text-secondary); text-align: center;">
+                    No featured video selected yet.
+                </div>
+            `;
+            title.textContent = 'No active featured video';
+            description.textContent = message;
         }
+
+        function renderCampaignVideo(campaign) {
+            player.src = `https://www.youtube.com/embed/${campaign.video_id}?autoplay=1&rel=0`;
+            title.textContent = campaign.video_title || `Promoted Creator Content | Video ID: ${campaign.video_id}`;
+            description.textContent = 'This video is being featured through the CreatorLift curation network as part of a reviewed promotional campaign. Monetization eligibility and channel outcomes depend on YouTube policies, viewer behavior, and channel performance.';
+            creatorInfo.innerHTML = `
+                <div style="width: 40px; height: 40px; background: var(--accent-gradient); border-radius: 50%;"></div>
+                <div>
+                    <div style="font-weight: 600;">${escapeHtml(campaign.curation_category || 'YouTube Creator')}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Reviewed curation placement</div>
+                </div>
+            `;
+        }
+
+        async function loadUpNext(currentCode = '') {
+            const list = document.getElementById('upNextList');
+            try {
+                const res = await fetch(`${API_BASE}/curation`);
+                const data = await res.json();
+                const campaigns = (data.campaigns || []).filter(item => item.tracking_code !== currentCode).slice(0, 6);
+                if (!campaigns.length) return;
+                list.innerHTML = campaigns.map(item => `
+                    <a href="watch.html?campaign=${encodeURIComponent(item.tracking_code)}" class="up-next-item">
+                        <img src="${escapeHtml(item.thumbnail)}" class="thumbnail-mini" alt="">
+                        <div class="item-info">
+                            <h4>${escapeHtml(item.video_title || 'Featured Creator Video')}</h4>
+                            <p>${escapeHtml(item.curation_category || 'Creator Campaign')}</p>
+                        </div>
+                    </a>
+                `).join('');
+            } catch (err) {
+                console.log('Could not load curation sidebar');
+            }
+        }
+
+        async function loadWatchPage() {
+            const trackingCode = getQueryParam('campaign');
+            const videoId = getQueryParam('v');
+
+            if (trackingCode) {
+                try {
+                    const res = await fetch(`${API_BASE}/campaigns/track/${encodeURIComponent(trackingCode)}`);
+                    const data = await res.json();
+                    if (!res.ok || !data.success || !data.campaign.curation_approved) {
+                        throw new Error('This campaign is not approved for public curation.');
+                    }
+                    renderCampaignVideo(data.campaign);
+                    loadUpNext(trackingCode);
+                    return;
+                } catch (err) {
+                    renderEmptyWatch(err.message);
+                    loadUpNext();
+                    return;
+                }
+            }
+
+            if (videoId) {
+                player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+                title.textContent = `Promoted Creator Content | Video ID: ${videoId}`;
+                loadUpNext();
+                return;
+            }
+
+            renderEmptyWatch();
+            loadUpNext();
+        }
+
+        loadWatchPage();
 
         // Mouse effect (copying from main script)
         document.addEventListener('mousemove', (e) => {

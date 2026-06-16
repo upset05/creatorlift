@@ -1,8 +1,11 @@
 {
+    "campaigns": [],
     "orders": [],
     "active_target": "None",
     "stats": {
         "revenue": 0,
-        "hours": 0
-    }
+        "hours": 0,
+        "manual_metric": 0
+    },
+    "email_log": []
 }

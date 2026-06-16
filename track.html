@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Tracking | CreatorLift</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 3rem 0;
+        }
+
+        .tracking-shell {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .tracking-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 2.5rem;
+            margin-top: 2rem;
+        }
+
+        .tracking-grid {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .tracking-thumb {
+            width: 100%;
+            border-radius: 18px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255,255,255,0.04);
+        }
+
+        .tracking-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .tracking-meta div,
+        .update-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1rem;
+        }
+
+        .tracking-meta span {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.35rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.45rem 0.85rem;
+            border-radius: 999px;
+            background: rgba(139, 92, 246, 0.12);
+            color: var(--text-primary);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .update-list {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .back-link {
+            color: var(--primary-glow);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        @media (max-width: 760px) {
+            .tracking-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tracking-card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <main class="tracking-shell">
+        <a href="index.html" class="back-link"><i class="fas fa-arrow-left"></i> Back to CreatorLift</a>
+        <div class="tracking-card" id="trackingCard">
+            <h1>Loading campaign...</h1>
+            <p style="color: var(--text-secondary);">Please wait while we fetch your campaign status.</p>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '/api';
+
+        function escapeHtml(value) {
+            return String(value || '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char]));
+        }
+
+        function statusLabel(status) {
+            return String(status || '').replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+        }
+
+        function getTrackingCode() {
+            const query = new URLSearchParams(window.location.search);
+            if (query.get('c')) return query.get('c');
+            const parts = window.location.pathname.split('/').filter(Boolean);
+            return parts[0] === 'track' ? parts[1] : '';
+        }
+
+        function renderCampaign(campaign) {
+            const updates = campaign.customer_updates || [];
+            const updateMarkup = updates.length ? updates.map(update => `
+                <div class="update-item">
+                    <strong>${escapeHtml(new Date(update.created_at).toLocaleString())}</strong>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;">${escapeHtml(update.message)}</p>
+                </div>
+            `).join('') : `
+                <div class="update-item">
+                    <p style="color: var(--text-secondary);">No customer-facing campaign updates have been posted yet.</p>
+                </div>
+            `;
+
+            document.getElementById('trackingCard').innerHTML = `
+                <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                    <div>
+                        <h1>Campaign Tracking</h1>
+                        <p style="color: var(--text-secondary);">Track review, setup, curation, and completion updates.</p>
+                    </div>
+                    <span class="status-badge"><i class="fas fa-circle"></i>${escapeHtml(statusLabel(campaign.status))}</span>
+                </div>
+
+                <div class="tracking-grid" style="margin-top: 2rem;">
+                    <img class="tracking-thumb" src="${escapeHtml(campaign.thumbnail)}" alt="">
+                    <div>
+                        <h2>${escapeHtml(campaign.video_title || 'Submitted YouTube Video')}</h2>
+                        <div class="tracking-meta">
+                            <div><span>Plan</span>${escapeHtml(campaign.plan)}</div>
+                            <div><span>Amount Paid</span>NGN ${Number(campaign.amount_paid || 0).toLocaleString()}</div>
+                            <div><span>Curation</span>${campaign.curation_approved ? 'Approved' : 'Not approved yet'}</div>
+                            <div><span>Category</span>${escapeHtml(campaign.curation_category || 'Not assigned')}</div>
+                        </div>
+                        <a href="${escapeHtml(campaign.video_url)}" target="_blank" class="btn" style="border: 1px solid var(--glass-border); color: white;">Open YouTube Video</a>
+                    </div>
+                </div>
+
+                <h2 style="margin-top: 2.5rem;">Campaign Updates</h2>
+                <div class="update-list">${updateMarkup}</div>
+
+                <p style="color: var(--text-secondary); margin-top: 2rem; font-size: 0.9rem;">
+                    CreatorLift does not guarantee monetization approval, fixed watch hours, subscribers, revenue, or specific audience outcomes.
+                </p>
+            `;
+        }
+
+        async function loadTracking() {
+            const code = getTrackingCode();
+            if (!code) {
+                document.getElementById('trackingCard').innerHTML = '<h1>Tracking code missing</h1><p style="color: var(--text-secondary);">Use the tracking link sent after payment.</p>';
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/campaigns/track/${encodeURIComponent(code)}`);
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.message || 'Campaign not found.');
+                renderCampaign(data.campaign);
+            } catch (err) {
+                document.getElementById('trackingCard').innerHTML = `<h1>Campaign not found</h1><p style="color: var(--text-secondary);">${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        loadTracking();
+    </script>
+</body>
+</html>
