@@ -497,8 +497,8 @@
 
             <!-- PAYMENT SETUP TAB -->
             <div id="tab-payments" class="tab-page" style="display: none;">
-                <h1 style="font-family: 'Outfit'; margin-bottom: 1rem;">Payment & Email Configuration</h1>
-                <p style="color: var(--text-secondary); margin-bottom: 3rem;">The checkout verifies Paystack payments on the backend. Configure secrets in environment variables before going live.</p>
+                <h1 style="font-family: 'Outfit'; margin-bottom: 1rem;">Payment & Resend Configuration</h1>
+                <p style="color: var(--text-secondary); margin-bottom: 3rem;">The checkout verifies Paystack payments on the backend and sends notifications through Resend. Configure secrets in environment variables before going live.</p>
                 
                 <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
                     <div class="card" style="padding: 2rem;">
@@ -510,8 +510,8 @@
                         <p style="color: var(--text-secondary);">Set <code>CREATORLIFT_ADMIN_PASSWORD</code> or <code>ADMIN_PASSWORD</code>. Hard-coded admin passwords are no longer used.</p>
                     </div>
                     <div class="card" style="padding: 2rem;">
-                        <h3 style="margin-bottom: 1rem;">Email Notifications</h3>
-                        <p style="color: var(--text-secondary);">Set <code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_USER</code>, <code>SMTP_PASSWORD</code>, and <code>SMTP_FROM</code>. Without SMTP, notifications are logged in <code>db.json</code>.</p>
+                        <h3 style="margin-bottom: 1rem;">Resend Email</h3>
+                        <p style="color: var(--text-secondary);">Set <code>RESEND_API_KEY</code>, <code>RESEND_FROM_EMAIL</code>, <code>ADMIN_EMAIL</code>, and <code>NEXT_PUBLIC_APP_URL</code>. If Resend fails, campaign actions still complete and the error is logged.</p>
                     </div>
                 </div>
             </div>
@@ -675,6 +675,7 @@
     <script>
         window.campaigns = [];
         window.selectedCampaignId = null;
+        window.resendConfig = {};
         window.statuses = [
             'pending_payment',
             'paid_pending_review',
@@ -760,6 +761,7 @@
             const data = await res.json();
             window.campaigns = data.campaigns || [];
             window.statuses = data.statuses || window.statuses;
+            window.resendConfig = data.resend_config || {};
 
             document.getElementById('totalRev').textContent = formatMoney(data.stats?.revenue);
             document.getElementById('campaignCount').textContent = data.stats?.total_campaigns || 0;
@@ -857,11 +859,17 @@
             const panel = document.getElementById('campaignDetail');
             panel.style.display = 'block';
             const updates = campaign.customer_updates || [];
+            const emailActivity = campaign.email_activity || [];
+            const latestEmail = emailActivity[emailActivity.length - 1];
+            const resendMissing = window.resendConfig?.missing || [];
+            const emailWarning = latestEmail && !latestEmail.sent ? latestEmail.error : '';
             panel.innerHTML = `
                 <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:center;">
                     <div>
                         <h3 style="font-family:'Outfit'; margin-bottom:0.35rem;">Campaign #${campaign.id}</h3>
                         <span class="status-pill status-${escapeHtml(campaign.status)}">${statusLabel(campaign.status)}</span>
+                        ${emailWarning ? `<div style="margin-top:0.75rem; color:#f59e0b; font-size:0.9rem;">Email warning: ${escapeHtml(emailWarning)}</div>` : ''}
+                        ${resendMissing.length ? `<div style="margin-top:0.75rem; color:#f59e0b; font-size:0.9rem;">Resend config missing: ${escapeHtml(resendMissing.join(', '))}</div>` : ''}
                     </div>
                     <div class="button-row" style="margin-top:0;">
                         <a href="${escapeHtml(campaign.video_url)}" target="_blank" class="action-btn" style="padding:0.7rem 1rem; text-decoration:none;">Open Video</a>
@@ -887,6 +895,7 @@
                             <div class="meta-box"><span>Paystack Reference</span>${escapeHtml(campaign.paystack_reference || 'Not verified')}</div>
                             <div class="meta-box"><span>Video ID</span>${escapeHtml(campaign.video_id)}</div>
                             <div class="meta-box"><span>Tracking Code</span>${escapeHtml(campaign.tracking_code)}</div>
+                            <div class="meta-box"><span>Last Email</span>${latestEmail ? `${latestEmail.sent ? 'Sent' : 'Failed'} - ${escapeHtml(latestEmail.event || latestEmail.subject)}` : 'No email activity yet'}</div>
                         </div>
 
                         <label style="display:block; color:var(--text-secondary); margin-bottom:0.5rem;">Internal admin notes</label>
@@ -899,7 +908,10 @@
                         <div style="margin-top:2rem;">
                             <label style="display:block; color:var(--text-secondary); margin-bottom:0.5rem;">Customer-facing campaign update</label>
                             <textarea id="customerUpdate" class="admin-textarea" placeholder="Write an update the creator can see on the tracking page..."></textarea>
-                            <button onclick="addCustomerUpdate(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem; margin-top:0.75rem;">Add Update & Email</button>
+                            <div class="button-row">
+                                <button onclick="addCustomerUpdate(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem;">Add Update & Email</button>
+                                <button onclick="resendUpdateEmail(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem;">Resend Update Email</button>
+                            </div>
                         </div>
 
                         <div style="margin-top:2rem;">
@@ -921,6 +933,21 @@
                                         <p style="margin-top:0.4rem;">${escapeHtml(update.message)}</p>
                                     </div>
                                 `).join('') : '<div class="update-log-item">No customer-facing updates yet.</div>'}
+                            </div>
+                        </div>
+
+                        <div style="margin-top:2rem;">
+                            <h4>Email Activity</h4>
+                            <div class="update-log">
+                                ${emailActivity.length ? emailActivity.slice().reverse().map(item => `
+                                    <div class="update-log-item">
+                                        <strong>${escapeHtml(item.sent ? 'Sent' : 'Failed')} - ${escapeHtml(item.event || item.subject)}</strong>
+                                        <p style="margin-top:0.35rem;">To: ${escapeHtml(item.to || '')}</p>
+                                        <p style="margin-top:0.35rem;">${escapeHtml(item.created_at ? new Date(item.created_at).toLocaleString() : '')}</p>
+                                        ${item.provider_id ? `<p style="margin-top:0.35rem;">Resend ID: ${escapeHtml(item.provider_id)}</p>` : ''}
+                                        ${item.error ? `<p style="margin-top:0.35rem; color:#f59e0b;">${escapeHtml(item.error)}</p>` : ''}
+                                    </div>
+                                `).join('') : '<div class="update-log-item">No email activity yet.</div>'}
                             </div>
                         </div>
                     </div>
@@ -971,6 +998,22 @@
             if (!res.ok || !data.success) return alert(data.message || 'Could not add update.');
             renderCampaignDetail(data.campaign);
             loadData();
+        };
+
+        window.resendUpdateEmail = async function resendUpdateEmail(id) {
+            const message = document.getElementById('customerUpdate').value;
+            const res = await fetch(`${API_BASE}/admin/campaigns/${id}/resend-email`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message})
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) return alert(data.message || 'Could not resend update email.');
+            renderCampaignDetail(data.campaign);
+            loadData();
+            if (data.warning) {
+                alert(`Email was logged but not sent: ${data.warning}`);
+            }
         };
 
         window.saveCuration = async function saveCuration(id) {

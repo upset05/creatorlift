@@ -1,14 +1,14 @@
 from datetime import datetime, timezone
-from email.message import EmailMessage
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, session
 from flask_cors import CORS
+import html
 import json
 import os
 import re
-import smtplib
 import uuid
 import requests
+from email_service import resend_config_status, send_creatorlift_email
 
 app = Flask(__name__, static_folder='.')
 CORS(app)
@@ -50,6 +50,7 @@ def default_db():
         'active_target': 'None',
         'stats': {'revenue': 0, 'manual_metric': 0, 'hours': 0},
         'email_log': [],
+        'resend_config': resend_config_status(),
     }
 
 
@@ -137,6 +138,8 @@ def campaign_from_legacy_order(order, fallback_id):
         'reject_reason': order.get('reject_reason', ''),
         'refund_status': order.get('refund_status', ''),
         'paystack_data': order.get('paystack_data', {}),
+        'email_activity': order.get('email_activity', []),
+        'email_warnings': order.get('email_warnings', []),
     }
 
 
@@ -169,6 +172,8 @@ def ensure_campaign_shape(campaign, fallback_id):
         'reject_reason': '',
         'refund_status': '',
         'paystack_data': {},
+        'email_activity': [],
+        'email_warnings': [],
     }
     for key, value in defaults.items():
         if key not in campaign:
@@ -312,53 +317,160 @@ def verify_paystack_reference(reference):
     return True, 'Payment verified', payload
 
 
-def send_notification(email, subject, body):
-    result = {
-        'to': email,
-        'subject': subject,
-        'body': body,
+def app_base_url():
+    return (os.environ.get('NEXT_PUBLIC_APP_URL') or request.host_url.rstrip('/')).rstrip('/')
+
+
+def tracking_url_for(campaign):
+    return f"{app_base_url()}/track/{campaign.get('tracking_code')}"
+
+
+def safe_email_html(title, body_lines, action_url=None, action_label='Track Campaign'):
+    safe_title = html.escape(title)
+    paragraphs = ''.join(f"<p>{html.escape(str(line))}</p>" for line in body_lines)
+    action = ''
+    if action_url:
+        safe_action_url = html.escape(action_url, quote=True)
+        safe_action_label = html.escape(action_label)
+        action = (
+            f'<p><a href="{safe_action_url}" '
+            'style="display:inline-block;padding:12px 18px;background:#8b5cf6;color:#ffffff;'
+            'border-radius:8px;text-decoration:none;font-weight:700;">'
+            f'{safe_action_label}</a></p>'
+        )
+    return f"""
+    <div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;">
+        <h2>{safe_title}</h2>
+        {paragraphs}
+        {action}
+        <p style="color:#6b7280;font-size:13px;">
+            Results vary based on campaign settings, niche, content quality, audience interest,
+            and platform systems. CreatorLift does not guarantee subscribers, watch hours,
+            monetization approval, revenue, or income.
+        </p>
+    </div>
+    """
+
+
+def send_email_event(db, campaign, event, recipient, subject, body_lines, action_url=None, action_label='Track Campaign'):
+    text_body = '\n\n'.join(body_lines + [
+        '',
+        'Results vary based on campaign settings, niche, content quality, audience interest, and platform systems. '
+        'CreatorLift does not guarantee subscribers, watch hours, monetization approval, revenue, or income.'
+    ])
+    if action_url:
+        text_body = f"{text_body}\n\n{action_label}: {action_url}"
+
+    result = send_creatorlift_email(
+        recipient,
+        subject,
+        text_body,
+        html_body=safe_email_html(subject, body_lines, action_url, action_label),
+        tags=[
+            {'name': 'campaign_event', 'value': event},
+            {'name': 'campaign_id', 'value': str(campaign.get('id', ''))},
+        ],
+    )
+    log = {
+        **result,
+        'event': event,
+        'campaign_id': campaign.get('id'),
+        'tracking_code': campaign.get('tracking_code'),
         'created_at': now_iso(),
-        'sent': False,
-        'error': '',
     }
-
-    smtp_host = os.environ.get('SMTP_HOST')
-    smtp_from = os.environ.get('SMTP_FROM') or os.environ.get('SMTP_USER')
-    if smtp_host and smtp_from and email:
-        try:
-            message = EmailMessage()
-            message['From'] = smtp_from
-            message['To'] = email
-            message['Subject'] = subject
-            message.set_content(body)
-
-            smtp_port = int(os.environ.get('SMTP_PORT', '587'))
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as smtp:
-                if os.environ.get('SMTP_TLS', 'true').lower() != 'false':
-                    smtp.starttls()
-                smtp_user = os.environ.get('SMTP_USER')
-                smtp_password = os.environ.get('SMTP_PASSWORD')
-                if smtp_user and smtp_password:
-                    smtp.login(smtp_user, smtp_password)
-                smtp.send_message(message)
-            result['sent'] = True
-        except Exception as exc:
-            result['error'] = str(exc)
-
-    print('--- EMAIL NOTIFICATION ---')
-    print(f"To: {email}")
-    print(f"Subject: {subject}")
-    print(f"Body: {body}")
-    if result['error']:
-        print(f"Email Error: {result['error']}")
-    print('--------------------------')
-    return result
-
-
-def add_email_log(db, email, subject, body):
-    log = send_notification(email, subject, body)
     db.setdefault('email_log', []).append(log)
+    campaign.setdefault('email_activity', []).append(log)
+    if not result.get('sent'):
+        campaign.setdefault('email_warnings', []).append({
+            'event': event,
+            'error': result.get('error', 'Email not sent'),
+            'created_at': log['created_at'],
+        })
+        print(f"Resend warning for campaign {campaign.get('id')} [{event}]: {result.get('error')}")
     return log
+
+
+def campaign_email_copy(campaign, event, reason=''):
+    track_url = tracking_url_for(campaign)
+    plan = campaign.get('plan', 'CreatorLift campaign')
+    copies = {
+        'campaign_submitted_for_review': {
+            'subject': 'CreatorLift campaign received',
+            'lines': [
+                f"Your {plan} has been received and is pending payment or review.",
+                "Our team will review your submitted video and campaign details before setup.",
+            ],
+        },
+        'payment_received': {
+            'subject': 'Payment received - CreatorLift campaign review',
+            'lines': [
+                f"We received your payment for {plan}.",
+                "Your campaign has been received and is pending review.",
+                "If eligible, our team will prepare the campaign setup and keep you updated.",
+            ],
+        },
+        'campaign_approved': {
+            'subject': 'CreatorLift campaign approved for setup',
+            'lines': [
+                "Your campaign has been approved for setup.",
+                "Our team will prepare the campaign using compliant promotional methods.",
+                "Performance depends on campaign settings, niche, content quality, and audience response.",
+            ],
+        },
+        'campaign_rejected': {
+            'subject': 'CreatorLift campaign review update',
+            'lines': [
+                "Your campaign was not approved for launch after review.",
+                "If payment was captured, the refund request will be reviewed based on campaign status.",
+                f"Review note: {reason or campaign.get('reject_reason') or 'Campaign was not eligible for promotion.'}",
+            ],
+        },
+        'campaign_active': {
+            'subject': 'CreatorLift campaign is active',
+            'lines': [
+                "Your campaign has been marked active.",
+                "You can monitor performance inside your YouTube Studio and follow campaign updates on your tracking page.",
+                "Performance depends on campaign settings, niche, content quality, and audience response.",
+            ],
+        },
+        'campaign_completed': {
+            'subject': 'CreatorLift campaign completed',
+            'lines': [
+                "Your campaign has been marked completed.",
+                "Please review your campaign updates and YouTube Studio analytics for performance details.",
+                "Results vary based on content quality, niche, audience interest, campaign settings, and YouTube systems.",
+            ],
+        },
+    }
+    copy = copies[event]
+    return copy['subject'], copy['lines'], track_url
+
+
+def send_campaign_email(db, campaign, event, reason=''):
+    subject, lines, track_url = campaign_email_copy(campaign, event, reason)
+    return send_email_event(db, campaign, event, campaign.get('email'), subject, lines, track_url)
+
+
+def send_admin_new_campaign_email(db, campaign):
+    admin_email = os.environ.get('ADMIN_EMAIL', '')
+    admin_url = f"{app_base_url()}/admin.html"
+    lines = [
+        "A new CreatorLift campaign has been paid and is pending review.",
+        f"Customer: {campaign.get('email')}",
+        f"Plan: {campaign.get('plan')}",
+        f"Video URL: {campaign.get('video_url')}",
+        "Review the campaign in the admin dashboard before approving setup or curation.",
+    ]
+    return send_email_event(
+        db,
+        campaign,
+        'admin_new_campaign',
+        admin_email,
+        'New CreatorLift campaign pending review',
+        lines,
+        admin_url,
+        'Open Admin',
+    )
 
 
 def sync_legacy_orders(db):
@@ -428,6 +540,8 @@ def create_campaign(data):
         'reject_reason': '',
         'refund_status': '',
         'paystack_data': {},
+        'email_activity': [],
+        'email_warnings': [],
     }
     return campaign, ''
 
@@ -440,42 +554,21 @@ def update_campaign_status(db, campaign, status, reason=''):
     campaign['status'] = status
     campaign['updated_at'] = now_iso()
 
-    tracking_url = f"{request.host_url.rstrip('/')}/track/{campaign.get('tracking_code')}"
-    email = campaign.get('email')
-    subject = None
-    body = None
-
-    if status == 'approved_for_setup':
-        subject = 'CreatorLift campaign approved for setup'
-        body = (
-            "Your campaign has been reviewed and approved for setup. "
-            f"You can track updates here: {tracking_url}"
-        )
-    elif status == 'rejected_refunded':
+    if status == 'rejected_refunded':
         campaign['reject_reason'] = reason or campaign.get('reject_reason') or 'Campaign was not eligible for promotion.'
         campaign['refund_status'] = 'refund_review_required'
         campaign['curation_approved'] = False
-        subject = 'CreatorLift campaign review update'
-        body = (
-            "Your campaign was not approved for launch after review. "
-            "If payment was captured, the refund request will be reviewed based on campaign status. "
-            f"Reason: {campaign['reject_reason']}"
-        )
-    elif status == 'campaign_active':
-        subject = 'CreatorLift campaign is active'
-        body = (
-            "Your campaign has been marked active. Monitor performance in YouTube Studio and follow updates here: "
-            f"{tracking_url}"
-        )
-    elif status == 'campaign_completed':
-        subject = 'CreatorLift campaign completed'
-        body = (
-            "Your campaign has been marked completed. Results may vary based on content quality, niche, "
-            "audience interest, campaign settings, and YouTube systems."
-        )
 
-    if subject and body and previous_status != status:
-        add_email_log(db, email, subject, body)
+    if previous_status != status:
+        event_map = {
+            'approved_for_setup': 'campaign_approved',
+            'rejected_refunded': 'campaign_rejected',
+            'campaign_active': 'campaign_active',
+            'campaign_completed': 'campaign_completed',
+        }
+        event = event_map.get(status)
+        if event:
+            send_campaign_email(db, campaign, event, reason)
 
     return True, ''
 
@@ -537,6 +630,7 @@ def submit_campaign():
     db = load_db()
     campaign['id'] = next_campaign_id(db)
     db.setdefault('campaigns', []).append(campaign)
+    send_campaign_email(db, campaign, 'campaign_submitted_for_review')
     sync_legacy_orders(db)
     save_db(db)
 
@@ -545,6 +639,7 @@ def submit_campaign():
         'campaign': public_campaign(campaign),
         'campaign_id': campaign['id'],
         'tracking_code': campaign['tracking_code'],
+        'email_activity': campaign.get('email_activity', []),
     })
 
 
@@ -605,17 +700,9 @@ def place_order():
     campaign['status'] = 'paid_pending_review'
     campaign['updated_at'] = now_iso()
 
-    tracking_url = f"{request.host_url.rstrip('/')}/track/{campaign.get('tracking_code')}"
-    add_email_log(
-        db,
-        campaign.get('email'),
-        'Payment received - CreatorLift campaign review',
-        (
-            f"We received your payment for {campaign.get('plan')}. "
-            "Our team will review your video and campaign details before setup. "
-            f"Track your campaign here: {tracking_url}"
-        ),
-    )
+    tracking_url = tracking_url_for(campaign)
+    send_campaign_email(db, campaign, 'payment_received')
+    send_admin_new_campaign_email(db, campaign)
 
     calculate_admin_stats(db)
     sync_legacy_orders(db)
@@ -625,6 +712,7 @@ def place_order():
         'success': True,
         'campaign': public_campaign(campaign),
         'tracking_url': tracking_url,
+        'email_activity': campaign.get('email_activity', []),
     })
 
 
@@ -643,7 +731,7 @@ def get_curation_campaigns():
     campaigns = [
         public_campaign(c)
         for c in db.get('campaigns', [])
-        if c.get('curation_approved') and c.get('status') not in ['pending_payment', 'rejected_refunded']
+        if c.get('curation_approved') and c.get('status') in ['campaign_active', 'campaign_completed']
     ]
     campaigns.sort(key=lambda c: c.get('updated_at') or '', reverse=True)
     return jsonify({'success': True, 'campaigns': campaigns})
@@ -690,6 +778,7 @@ def get_admin_data():
         'orders': db.get('orders', []),
         'active_target': db.get('active_target', 'None'),
         'statuses': CAMPAIGN_STATUSES,
+        'resend_config': resend_config_status(),
     })
 
 
@@ -714,6 +803,7 @@ def list_admin_campaigns():
         'campaigns': [admin_campaign(c) for c in campaigns],
         'stats': stats,
         'statuses': CAMPAIGN_STATUSES,
+        'resend_config': resend_config_status(),
     })
 
 
@@ -750,6 +840,8 @@ def admin_verify_payment(campaign_id):
         'channel': paystack_data.get('channel'),
         'paid_at': paystack_data.get('paid_at'),
     }
+    send_campaign_email(db, campaign, 'payment_received')
+    send_admin_new_campaign_email(db, campaign)
     sync_legacy_orders(db)
     save_db(db)
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
@@ -804,15 +896,60 @@ def add_customer_update(campaign_id):
     campaign.setdefault('customer_updates', []).append(update)
     campaign['updated_at'] = now_iso()
     if data.get('send_email', True):
-        tracking_url = f"{request.host_url.rstrip('/')}/track/{campaign.get('tracking_code')}"
-        add_email_log(
+        tracking_url = tracking_url_for(campaign)
+        send_email_event(
             db,
+            campaign,
+            'customer_update',
             campaign.get('email'),
             'CreatorLift campaign update',
-            f"{message}\n\nTrack your campaign here: {tracking_url}",
+            [
+                message,
+                "You can view this update and your campaign status on your tracking page.",
+            ],
+            tracking_url,
         )
     save_db(db)
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
+
+
+@app.route('/api/admin/campaigns/<int:campaign_id>/resend-email', methods=['POST'])
+@admin_required
+def resend_update_email(campaign_id):
+    db = load_db()
+    campaign = find_campaign(db, campaign_id)
+    if not campaign:
+        return jsonify({'success': False, 'message': 'Campaign not found'}), 404
+
+    data = request.json or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        updates = campaign.get('customer_updates', [])
+        if updates:
+            message = updates[-1].get('message', '')
+    if not message:
+        return jsonify({'success': False, 'message': 'Write a customer update before resending email.'}), 400
+
+    result = send_email_event(
+        db,
+        campaign,
+        'manual_update_resend',
+        campaign.get('email'),
+        'CreatorLift campaign update',
+        [
+            message,
+            "This is a resent campaign update from the CreatorLift team.",
+        ],
+        tracking_url_for(campaign),
+    )
+    campaign['updated_at'] = now_iso()
+    save_db(db)
+    return jsonify({
+        'success': True,
+        'campaign': admin_campaign(campaign),
+        'email_result': result,
+        'warning': '' if result.get('sent') else result.get('error', 'Resend email was not sent.'),
+    })
 
 
 @app.route('/api/admin/campaigns/<int:campaign_id>/curation', methods=['POST'])
