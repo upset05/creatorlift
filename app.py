@@ -34,14 +34,18 @@ CAMPAIGN_STATUSES = [
 ]
 
 PLAN_AMOUNTS = {
-    'Starter Campaign': 15000,
-    'Growth Accelerator': 45000,
+    'Discovery Campaign': 5000,
+    'Starter Campaign': 10000,
+    'Growth Accelerator': 15000,
+    'Professional Campaign': 45000,
     'Agency Partnership': 85000,
 }
 
 PLAN_DURATIONS = {
+    'Discovery Campaign': 4,
     'Starter Campaign': 5,
-    'Growth Accelerator': 14,
+    'Growth Accelerator': 10,
+    'Professional Campaign': 14,
     'Agency Partnership': 30,
 }
 
@@ -126,6 +130,29 @@ def migrate_db(data):
             campaigns.append(campaign_from_legacy_order(order, index))
         data['campaigns'] = campaigns
         changed = True
+
+    # Migrate old plans to new plan names / amounts to maintain consistency
+    for c in data.get('campaigns', []):
+        old_plan = c.get('plan')
+        if old_plan == 'Starter Campaign' and (c.get('amount_paid') == 15000 or c.get('amount_expected') == 15000):
+            c['plan'] = 'Growth Accelerator'
+            c['amount_expected'] = 15000
+            c['promotion_duration_days'] = 10
+            changed = True
+        elif old_plan == 'Growth Accelerator' and (c.get('amount_paid') == 45000 or c.get('amount_expected') == 45000):
+            c['plan'] = 'Professional Campaign'
+            c['amount_expected'] = 45000
+            c['promotion_duration_days'] = 14
+            changed = True
+
+    for o in data.get('orders', []):
+        old_plan = o.get('plan')
+        if old_plan == 'Starter Campaign' and o.get('amount') == 15000:
+            o['plan'] = 'Growth Accelerator'
+            changed = True
+        elif old_plan == 'Growth Accelerator' and o.get('amount') == 45000:
+            o['plan'] = 'Professional Campaign'
+            changed = True
 
     next_id = 1
     for campaign in data.get('campaigns', []):
@@ -233,25 +260,31 @@ def ensure_campaign_shape(campaign, fallback_id):
         changed = True
     return changed
 
-
 def normalize_plan(plan):
-    if plan in PLAN_AMOUNTS:
-        return plan
-    if '45' in plan or 'Growth' in plan:
+    if not plan:
+        return 'Discovery Campaign'
+    plan_str = str(plan)
+    if plan_str in PLAN_AMOUNTS:
+        return plan_str
+    if 'Discovery' in plan_str or '5000' in plan_str or '5,000' in plan_str:
+        return 'Discovery Campaign'
+    if 'Starter' in plan_str or '10000' in plan_str or '10,000' in plan_str:
+        return 'Starter Campaign'
+    if 'Growth' in plan_str or '15000' in plan_str or '15,000' in plan_str:
         return 'Growth Accelerator'
-    if '85' in plan or 'Agency' in plan:
+    if 'Professional' in plan_str or '45000' in plan_str or '45,000' in plan_str:
+        return 'Professional Campaign'
+    if 'Agency' in plan_str or '85000' in plan_str or '85,000' in plan_str:
         return 'Agency Partnership'
-    return 'Starter Campaign'
+    return 'Discovery Campaign'
 
 
 def plan_amount(plan):
-    return PLAN_AMOUNTS.get(plan, PLAN_AMOUNTS['Starter Campaign'])
+    return PLAN_AMOUNTS.get(plan, PLAN_AMOUNTS['Discovery Campaign'])
 
 
 def plan_duration_days(plan):
-    return PLAN_DURATIONS.get(plan, PLAN_DURATIONS['Starter Campaign'])
-
-
+    return PLAN_DURATIONS.get(plan, PLAN_DURATIONS['Discovery Campaign'])
 def make_tracking_code():
     return uuid.uuid4().hex[:10]
 
