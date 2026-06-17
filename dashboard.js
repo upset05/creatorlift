@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = '';
 const PAYSTACK_PUBLIC_KEY = 'pk_live_7f3162d6e8ef7df846b5420af9f8084a9c7be2e1';
 
 const state = {
@@ -56,6 +56,16 @@ function showNotice(message, tone = 'info') {
     elements.notice.style.display = message ? 'block' : 'none';
     elements.notice.style.borderColor = tone === 'error' ? 'rgba(239, 68, 68, 0.45)' : 'rgba(139, 92, 246, 0.3)';
     elements.notice.style.color = tone === 'error' ? '#fecaca' : '#ddd6fe';
+}
+
+async function readJson(response) {
+    const text = await response.text();
+    try {
+        return JSON.parse(text);
+    } catch (error) {
+        const preview = text.trim().slice(0, 80) || 'empty response';
+        throw new Error(`The server returned HTML instead of JSON. Check that this deployment is running the Flask app. Preview: ${preview}`);
+    }
 }
 
 function countdownText(campaign) {
@@ -141,7 +151,7 @@ function renderCampaigns() {
 
 async function loadPlans() {
     const response = await fetch(`${API_BASE}/plans`);
-    const data = await response.json();
+    const data = await readJson(response);
     if (!response.ok || !data.success) throw new Error(data.message || 'Could not load plans.');
     state.plans = data.plans || [];
     renderPlans();
@@ -153,7 +163,7 @@ async function loadDashboard(email = state.email) {
 
     showNotice('Loading your dashboard...');
     const response = await fetch(`${API_BASE}/customer/campaigns?email=${encodeURIComponent(cleanEmail)}`);
-    const data = await response.json();
+    const data = await readJson(response);
     if (!response.ok || !data.success) throw new Error(data.message || 'Could not load dashboard.');
 
     state.email = cleanEmail;
@@ -184,7 +194,7 @@ async function createCampaign() {
             promotion_duration_days: plan.duration_days
         })
     });
-    const data = await response.json();
+    const data = await readJson(response);
     if (!response.ok || !data.success) throw new Error(data.message || 'Could not create campaign.');
     return data;
 }
@@ -214,7 +224,7 @@ function openPaystackForCampaign(campaignData, plan, videoUrl) {
                         reference: response.reference
                     })
                 });
-                const verifyData = await verifyRes.json();
+                const verifyData = await readJson(verifyRes);
                 if (!verifyRes.ok || !verifyData.success) {
                     throw new Error(verifyData.message || 'Payment verification failed.');
                 }

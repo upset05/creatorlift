@@ -528,7 +528,7 @@
     </div>
 
     <script>
-        const API_BASE = '/api'; // Using relative path for server compatibility
+        const API_BASE = ''; // Keep browser API calls outside Vercel's /api namespace.
 
         async function login() {
             const pass = document.getElementById('adminPass').value;

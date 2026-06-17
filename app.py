@@ -692,6 +692,7 @@ def contact_page():
     return send_from_directory('.', 'contact.html')
 
 
+@app.route('/campaigns', methods=['POST'])
 @app.route('/api/campaigns', methods=['POST'])
 def submit_campaign():
     data = request.json or {}
@@ -715,6 +716,7 @@ def submit_campaign():
     })
 
 
+@app.route('/order', methods=['POST'])
 @app.route('/api/order', methods=['POST'])
 def place_order():
     data = request.json or {}
@@ -788,6 +790,7 @@ def place_order():
     })
 
 
+@app.route('/campaigns/track/<tracking_code>')
 @app.route('/api/campaigns/track/<tracking_code>')
 def track_campaign(tracking_code):
     db = load_db()
@@ -797,6 +800,7 @@ def track_campaign(tracking_code):
     return jsonify({'success': True, 'campaign': public_campaign(campaign)})
 
 
+@app.route('/plans')
 @app.route('/api/plans')
 def get_plans():
     return jsonify({
@@ -812,6 +816,7 @@ def get_plans():
     })
 
 
+@app.route('/customer/campaigns')
 @app.route('/api/customer/campaigns')
 def get_customer_campaigns():
     email = (request.args.get('email') or '').strip().lower()
@@ -840,6 +845,7 @@ def get_customer_campaigns():
     })
 
 
+@app.route('/curation')
 @app.route('/api/curation')
 def get_curation_campaigns():
     db = load_db()
@@ -852,6 +858,7 @@ def get_curation_campaigns():
     return jsonify({'success': True, 'campaigns': campaigns})
 
 
+@app.route('/stats')
 @app.route('/api/stats')
 def get_public_stats():
     db = load_db()
@@ -866,6 +873,7 @@ def get_public_stats():
     })
 
 
+@app.route('/admin/login', methods=['POST'])
 @app.route('/api/admin/login', methods=['POST'])
 def login():
     if not ADMIN_PASSWORD:
@@ -880,6 +888,7 @@ def login():
     return jsonify({'success': False, 'message': 'Invalid password'}), 401
 
 
+@app.route('/admin/data')
 @app.route('/api/admin/data')
 @admin_required
 def get_admin_data():
@@ -898,6 +907,7 @@ def get_admin_data():
     })
 
 
+@app.route('/admin/campaigns')
 @app.route('/api/admin/campaigns')
 @admin_required
 def list_admin_campaigns():
@@ -924,6 +934,7 @@ def list_admin_campaigns():
     })
 
 
+@app.route('/admin/campaigns/<int:campaign_id>')
 @app.route('/api/admin/campaigns/<int:campaign_id>')
 @admin_required
 def get_admin_campaign(campaign_id):
@@ -934,6 +945,7 @@ def get_admin_campaign(campaign_id):
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
 
 
+@app.route('/admin/test-email', methods=['POST'])
 @app.route('/api/admin/test-email', methods=['POST'])
 @admin_required
 def send_test_email():
@@ -963,6 +975,7 @@ def send_test_email():
     }), 200 if result.get('sent') else 400
 
 
+@app.route('/admin/campaigns/<int:campaign_id>/verify-payment', methods=['POST'])
 @app.route('/api/admin/campaigns/<int:campaign_id>/verify-payment', methods=['POST'])
 @admin_required
 def admin_verify_payment(campaign_id):
@@ -993,6 +1006,7 @@ def admin_verify_payment(campaign_id):
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
 
 
+@app.route('/admin/campaigns/<int:campaign_id>/status', methods=['POST'])
 @app.route('/api/admin/campaigns/<int:campaign_id>/status', methods=['POST'])
 @admin_required
 def set_campaign_status(campaign_id):
@@ -1012,6 +1026,7 @@ def set_campaign_status(campaign_id):
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
 
 
+@app.route('/admin/campaigns/<int:campaign_id>/notes', methods=['POST'])
 @app.route('/api/admin/campaigns/<int:campaign_id>/notes', methods=['POST'])
 @admin_required
 def save_admin_notes(campaign_id):
@@ -1025,6 +1040,7 @@ def save_admin_notes(campaign_id):
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
 
 
+@app.route('/admin/campaigns/<int:campaign_id>/updates', methods=['POST'])
 @app.route('/api/admin/campaigns/<int:campaign_id>/updates', methods=['POST'])
 @admin_required
 def add_customer_update(campaign_id):
@@ -1059,6 +1075,7 @@ def add_customer_update(campaign_id):
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
 
 
+@app.route('/admin/campaigns/<int:campaign_id>/resend-email', methods=['POST'])
 @app.route('/api/admin/campaigns/<int:campaign_id>/resend-email', methods=['POST'])
 @admin_required
 def resend_update_email(campaign_id):
@@ -1098,6 +1115,7 @@ def resend_update_email(campaign_id):
     })
 
 
+@app.route('/admin/campaigns/<int:campaign_id>/curation', methods=['POST'])
 @app.route('/api/admin/campaigns/<int:campaign_id>/curation', methods=['POST'])
 @admin_required
 def update_curation(campaign_id):
@@ -1116,6 +1134,7 @@ def update_curation(campaign_id):
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
 
 
+@app.route('/admin/update-stats', methods=['POST'])
 @app.route('/api/admin/update-stats', methods=['POST'])
 @admin_required
 def update_stats():
@@ -1130,6 +1149,7 @@ def update_stats():
     return jsonify({'success': True})
 
 
+@app.route('/admin/activate', methods=['POST'])
 @app.route('/api/admin/activate', methods=['POST'])
 @admin_required
 def activate_order():
@@ -1145,6 +1165,7 @@ def activate_order():
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
 
 
+@app.route('/admin/delete-order', methods=['POST'])
 @app.route('/api/admin/delete-order', methods=['POST'])
 @admin_required
 def delete_order():
@@ -1156,6 +1177,7 @@ def delete_order():
     return jsonify({'success': True})
 
 
+@app.route('/admin/update-target', methods=['POST'])
 @app.route('/api/admin/update-target', methods=['POST'])
 @admin_required
 def update_target():
@@ -1165,6 +1187,7 @@ def update_target():
     return jsonify({'success': True})
 
 
+@app.route('/admin/reset-network', methods=['POST'])
 @app.route('/api/admin/reset-network', methods=['POST'])
 @admin_required
 def reset_network():

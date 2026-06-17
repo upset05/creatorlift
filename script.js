@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = '';
 // Scroll Reveal Animation
 const observerOptions = {
     threshold: 0.1
