@@ -512,6 +512,15 @@
                     <div class="card" style="padding: 2rem;">
                         <h3 style="margin-bottom: 1rem;">Resend Email</h3>
                         <p style="color: var(--text-secondary);">Set <code>RESEND_API_KEY</code>, <code>RESEND_FROM_EMAIL</code>, <code>ADMIN_EMAIL</code>, and <code>NEXT_PUBLIC_APP_URL</code>. If Resend fails, campaign actions still complete and the error is logged.</p>
+                        <div style="margin-top: 1.25rem;">
+                            <input id="testEmailInput" class="admin-input" type="email" placeholder="Send test to email...">
+                            <button onclick="sendTestEmail()" class="action-btn" style="padding:0.75rem 1rem; margin-top:0.75rem;">Send Test Email</button>
+                            <p id="testEmailResult" style="color: var(--text-secondary); font-size:0.85rem; margin-top:0.75rem;"></p>
+                        </div>
+                    </div>
+                    <div class="card" style="padding: 2rem;">
+                        <h3 style="margin-bottom: 1rem;">Supabase Storage</h3>
+                        <p style="color: var(--text-secondary);">For Vercel, set <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_ROLE_KEY</code>. Without them, CreatorLift falls back to <code>db.json</code>, which is best for local or Render testing.</p>
                     </div>
                 </div>
             </div>
@@ -676,6 +685,7 @@
         window.campaigns = [];
         window.selectedCampaignId = null;
         window.resendConfig = {};
+        window.supabaseConfig = {};
         window.statuses = [
             'pending_payment',
             'paid_pending_review',
@@ -762,6 +772,7 @@
             window.campaigns = data.campaigns || [];
             window.statuses = data.statuses || window.statuses;
             window.resendConfig = data.resend_config || {};
+            window.supabaseConfig = data.supabase_config || {};
 
             document.getElementById('totalRev').textContent = formatMoney(data.stats?.revenue);
             document.getElementById('campaignCount').textContent = data.stats?.total_campaigns || 0;
@@ -1014,6 +1025,20 @@
             if (data.warning) {
                 alert(`Email was logged but not sent: ${data.warning}`);
             }
+        };
+
+        window.sendTestEmail = async function sendTestEmail() {
+            const email = document.getElementById('testEmailInput').value;
+            const result = document.getElementById('testEmailResult');
+            result.textContent = 'Sending test email...';
+            const res = await fetch(`${API_BASE}/admin/test-email`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email})
+            });
+            const data = await res.json();
+            result.textContent = data.message || (data.success ? 'Test email sent.' : 'Test email failed.');
+            result.style.color = data.success ? '#22c55e' : '#f59e0b';
         };
 
         window.saveCuration = async function saveCuration(id) {

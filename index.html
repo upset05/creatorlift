@@ -26,7 +26,7 @@
     <header>
         <nav class="container" style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem;">
             <div class="logo" style="font-family: 'Outfit'; font-weight: 700; font-size: 1.5rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">CreatorLift</div>
-            <a href="#join" class="btn btn-primary" style="padding: 0.6rem 1.5rem; font-size: 0.9rem;">Join Now</a>
+            <a href="dashboard.html" class="btn btn-primary" style="padding: 0.6rem 1.5rem; font-size: 0.9rem;">Dashboard</a>
         </nav>
     </header>
 
@@ -36,7 +36,7 @@
                 <h1>Accelerate Your YouTube <br>Growth, Legitimately.</h1>
                 <p>We help creators reach relevant viewers through Google Ads based campaigns, manual campaign review, and transparent promotional updates. No bots, click farms, or artificial engagement.</p>
                 <div class="hero-btns" style="display: flex; gap: 1rem; justify-content: center;">
-                    <a href="#pricing" class="btn btn-primary">Start My Campaign</a>
+                    <a href="dashboard.html" class="btn btn-primary">Start My Campaign</a>
                     <a href="#network" class="btn" style="border: 1px solid var(--glass-border); color: white;">View Curation Hub</a>
                 </div>
             </div>
@@ -213,7 +213,7 @@
                             <li><i class="fas fa-check" style="color: #22c55e;"></i> Campaign duration: 3 to 5 days</li>
                             <li><i class="fas fa-check" style="color: #22c55e;"></i> Basic campaign summary</li>
                         </ul>
-                        <a href="#join" class="btn btn-primary plan-cta" data-plan="Starter Campaign" style="width: 100%; text-align: center;">Launch Campaign</a>
+                        <a href="dashboard.html?plan=Starter%20Campaign" class="btn btn-primary" style="width: 100%; text-align: center;">Launch Campaign</a>
                     </div>
 
                     <div class="card" style="border-color: var(--primary-glow); transform: scale(1.05); background: rgba(139, 92, 246, 0.05);">
@@ -228,7 +228,7 @@
                             <li><i class="fas fa-check" style="color: #22c55e;"></i> Campaign duration: 7 to 14 days</li>
                             <li><i class="fas fa-check" style="color: #22c55e;"></i> Performance summary and recommendations</li>
                         </ul>
-                        <a href="#join" class="btn btn-primary plan-cta" data-plan="Growth Accelerator" style="width: 100%; text-align: center;">Launch Campaign</a>
+                        <a href="dashboard.html?plan=Growth%20Accelerator" class="btn btn-primary" style="width: 100%; text-align: center;">Launch Campaign</a>
                     </div>
 
                     <div class="card">
@@ -244,7 +244,7 @@
                             <li><i class="fas fa-check" style="color: #22c55e;"></i> Campaign duration: 14 to 30 days</li>
                             <li><i class="fas fa-check" style="color: #22c55e;"></i> Strategy review and performance report</li>
                         </ul>
-                        <a href="#join" class="btn btn-primary plan-cta" data-plan="Agency Partnership" style="width: 100%; text-align: center;">Partner With Us</a>
+                        <a href="dashboard.html?plan=Agency%20Partnership" class="btn btn-primary" style="width: 100%; text-align: center;">Partner With Us</a>
                     </div>
                 </div>
                 <p class="pricing-disclaimer">Results vary based on content quality, niche, audience interest, campaign settings, and YouTube's own systems. CreatorLift does not guarantee monetization approval, fixed watch hours, subscribers, or revenue.</p>
@@ -315,40 +315,13 @@
         </section>
 
         <section id="join" class="section container">
-            <h2 class="section-title reveal">Launch Your Promotion</h2>
+            <h2 class="section-title reveal">Launch From Your Dashboard</h2>
             <div class="form-container reveal">
-                <form id="paymentForm">
-                    <div class="form-group">
-                        <label>Select Plan</label>
-                        <select id="planSelect" style="width: 100%; padding: 1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white; cursor: pointer; appearance: none;">
-                            <option value="Starter Campaign" data-amount="15000">Starter Campaign (&#8358;15,000)</option>
-                            <option value="Growth Accelerator" data-amount="45000" selected>Growth Accelerator (&#8358;45,000)</option>
-                            <option value="Agency Partnership" data-amount="85000">Agency Partnership (&#8358;85,000)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="videoUrl">YouTube Video URL</label>
-                        <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." required>
-                        <small style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; display: block;">Paste the link to the video you want to promote.</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="email">Billing Email</label>
-                        <input type="email" id="email" placeholder="your@email.com" required>
-                    </div>
-                    <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid rgba(139, 92, 246, 0.2);">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span>Total Due:</span>
-                            <span id="totalDue" style="font-weight: 700; color: var(--primary-glow); font-size: 1.2rem;">&#8358;45,000</span>
-                        </div>
-                        <p style="font-size: 0.8rem; color: var(--text-secondary);">After payment, our team reviews your video and campaign details. If the campaign is eligible, setup usually begins within 12 hours.</p>
-                    </div>
-                    <p class="checkout-note">Videos that violate platform policies, contain restricted content, or are unsuitable for promotion may be rejected and refunded before campaign launch.</p>
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Pay &amp; Submit for Review</button>
-                </form>
-                <div id="paymentFeedback" style="display: none; text-align: center; padding: 2rem;">
-                    <i class="fas fa-check-circle" style="font-size: 3rem; color: var(--secondary-glow); margin-bottom: 1rem;"></i>
-                    <h3>Redirecting to Secure Payment...</h3>
-                    <p style="color: var(--text-secondary);">Please do not close this window.</p>
+                <div style="text-align:center;">
+                    <i class="fas fa-gauge-high" style="font-size: 3rem; color: var(--secondary-glow); margin-bottom: 1rem;"></i>
+                    <h3>Payments and campaign tracking now live in the customer dashboard.</h3>
+                    <p style="color: var(--text-secondary); margin: 1rem 0 1.5rem;">Open your dashboard to submit a video, choose a plan, enter starting views, pay securely, and follow campaign updates.</p>
+                    <a href="dashboard.html" class="btn btn-primary">Open Dashboard</a>
                 </div>
             </div>
         </section>
@@ -380,7 +353,6 @@
         <button onclick="document.getElementById('cookieBanner').style.display='none'" class="btn" style="padding: 0.5rem 1.5rem; border: 1px solid var(--glass-border); color: white; font-size: 0.8rem;">I Accept</button>
     </div>
 
-    <script src="https://js.paystack.co/v1/inline.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, session
 from flask_cors import CORS
@@ -9,6 +9,7 @@ import re
 import uuid
 import requests
 from email_service import resend_config_status, send_creatorlift_email
+from storage_service import load_state_from_supabase, save_state_to_supabase, supabase_config_status
 
 app = Flask(__name__, static_folder='.')
 CORS(app)
@@ -38,6 +39,12 @@ PLAN_AMOUNTS = {
     'Agency Partnership': 85000,
 }
 
+PLAN_DURATIONS = {
+    'Starter Campaign': 5,
+    'Growth Accelerator': 14,
+    'Agency Partnership': 30,
+}
+
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat(timespec='seconds')
@@ -51,10 +58,25 @@ def default_db():
         'stats': {'revenue': 0, 'manual_metric': 0, 'hours': 0},
         'email_log': [],
         'resend_config': resend_config_status(),
+        'supabase_config': supabase_config_status(),
     }
 
 
 def load_db():
+    supabase_status = supabase_config_status()
+    if supabase_status['configured']:
+        data, error = load_state_from_supabase()
+        if data:
+            changed = migrate_db(data)
+            if changed:
+                save_db(data)
+            return data
+        if not error:
+            data = default_db()
+            save_db(data)
+            return data
+        print(f"Supabase load warning: {error}")
+
     if not os.path.exists(DB_FILE):
         data = default_db()
         save_db(data)
@@ -70,6 +92,14 @@ def load_db():
 
 
 def save_db(data):
+    data['resend_config'] = resend_config_status()
+    data['supabase_config'] = supabase_config_status()
+    if data['supabase_config']['configured']:
+        ok, error = save_state_to_supabase(data)
+        if ok:
+            return
+        print(f"Supabase save warning: {error}")
+
     with open(DB_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
@@ -107,6 +137,7 @@ def migrate_db(data):
 
 def campaign_from_legacy_order(order, fallback_id):
     video_id = extract_youtube_video_id(order.get('video_url', ''))
+    plan = normalize_plan(order.get('plan', 'Starter Campaign'))
     status_map = {
         'paid': 'paid_pending_review',
         'active': 'campaign_active',
@@ -123,13 +154,17 @@ def campaign_from_legacy_order(order, fallback_id):
         'video_id': video_id,
         'thumbnail': youtube_thumbnail(video_id),
         'video_title': order.get('video_title') or (f'YouTube Video {video_id}' if video_id else 'Submitted YouTube Video'),
-        'plan': normalize_plan(order.get('plan', 'Starter Campaign')),
-        'amount_expected': plan_amount(normalize_plan(order.get('plan', 'Starter Campaign'))),
+        'plan': plan,
+        'amount_expected': plan_amount(plan),
         'amount_paid': order.get('amount', 0),
         'currency': 'NGN',
         'status': status_map.get(order.get('status'), 'paid_pending_review'),
         'paystack_reference': order.get('reference', ''),
         'payment_verified_at': order.get('payment_verified_at'),
+        'views_before': int(order.get('views_before') or 0),
+        'promotion_duration_days': int(order.get('promotion_duration_days') or plan_duration_days(plan)),
+        'promotion_started_at': order.get('promotion_started_at'),
+        'promotion_ends_at': order.get('promotion_ends_at'),
         'admin_notes': order.get('admin_notes', ''),
         'customer_updates': order.get('customer_updates', []),
         'curation_approved': order.get('curation_approved', False),
@@ -164,6 +199,10 @@ def ensure_campaign_shape(campaign, fallback_id):
         'status': 'pending_payment',
         'paystack_reference': '',
         'payment_verified_at': None,
+        'views_before': 0,
+        'promotion_duration_days': plan_duration_days(plan),
+        'promotion_started_at': None,
+        'promotion_ends_at': None,
         'admin_notes': '',
         'customer_updates': [],
         'curation_approved': False,
@@ -184,6 +223,9 @@ def ensure_campaign_shape(campaign, fallback_id):
         changed = True
     if campaign.get('plan') != plan:
         campaign['plan'] = plan
+        campaign['amount_expected'] = plan_amount(plan)
+        if not campaign.get('promotion_duration_days'):
+            campaign['promotion_duration_days'] = plan_duration_days(plan)
         changed = True
     if video_id and campaign.get('video_id') != video_id:
         campaign['video_id'] = video_id
@@ -204,6 +246,10 @@ def normalize_plan(plan):
 
 def plan_amount(plan):
     return PLAN_AMOUNTS.get(plan, PLAN_AMOUNTS['Starter Campaign'])
+
+
+def plan_duration_days(plan):
+    return PLAN_DURATIONS.get(plan, PLAN_DURATIONS['Starter Campaign'])
 
 
 def make_tracking_code():
@@ -265,6 +311,7 @@ def next_campaign_id(db):
 
 def public_campaign(campaign):
     return {
+        'id': campaign.get('id'),
         'tracking_code': campaign.get('tracking_code'),
         'created_at': campaign.get('created_at'),
         'updated_at': campaign.get('updated_at'),
@@ -273,12 +320,18 @@ def public_campaign(campaign):
         'thumbnail': campaign.get('thumbnail'),
         'video_title': campaign.get('video_title'),
         'plan': campaign.get('plan'),
+        'amount_expected': campaign.get('amount_expected'),
         'amount_paid': campaign.get('amount_paid'),
         'currency': campaign.get('currency', 'NGN'),
         'status': campaign.get('status'),
+        'views_before': campaign.get('views_before', 0),
+        'promotion_duration_days': campaign.get('promotion_duration_days'),
+        'promotion_started_at': campaign.get('promotion_started_at'),
+        'promotion_ends_at': campaign.get('promotion_ends_at'),
         'customer_updates': campaign.get('customer_updates', []),
         'curation_approved': campaign.get('curation_approved', False),
         'curation_category': campaign.get('curation_category', ''),
+        'tracking_url': tracking_url_for(campaign),
     }
 
 
@@ -484,6 +537,10 @@ def sync_legacy_orders(db):
             'status': campaign.get('status'),
             'reference': campaign.get('paystack_reference'),
             'amount': campaign.get('amount_paid', 0),
+            'views_before': campaign.get('views_before', 0),
+            'promotion_duration_days': campaign.get('promotion_duration_days'),
+            'promotion_started_at': campaign.get('promotion_started_at'),
+            'promotion_ends_at': campaign.get('promotion_ends_at'),
         })
     db['orders'] = orders
 
@@ -532,6 +589,10 @@ def create_campaign(data):
         'status': 'pending_payment',
         'paystack_reference': '',
         'payment_verified_at': None,
+        'views_before': int(data.get('views_before') or 0),
+        'promotion_duration_days': int(data.get('promotion_duration_days') or plan_duration_days(plan)),
+        'promotion_started_at': None,
+        'promotion_ends_at': None,
         'admin_notes': '',
         'customer_updates': [],
         'curation_approved': False,
@@ -558,6 +619,11 @@ def update_campaign_status(db, campaign, status, reason=''):
         campaign['reject_reason'] = reason or campaign.get('reject_reason') or 'Campaign was not eligible for promotion.'
         campaign['refund_status'] = 'refund_review_required'
         campaign['curation_approved'] = False
+    elif status == 'campaign_active' and not campaign.get('promotion_started_at'):
+        started_at = datetime.now(timezone.utc)
+        duration_days = int(campaign.get('promotion_duration_days') or plan_duration_days(campaign.get('plan')))
+        campaign['promotion_started_at'] = started_at.isoformat(timespec='seconds')
+        campaign['promotion_ends_at'] = (started_at + timedelta(days=duration_days)).isoformat(timespec='seconds')
 
     if previous_status != status:
         event_map = {
@@ -592,6 +658,12 @@ def tracking_page(tracking_code):
 @app.route('/track.html')
 def tracking_file():
     return send_from_directory('.', 'track.html')
+
+
+@app.route('/dashboard')
+@app.route('/dashboard.html')
+def dashboard_page():
+    return send_from_directory('.', 'dashboard.html')
 
 
 @app.route('/admin')
@@ -725,6 +797,49 @@ def track_campaign(tracking_code):
     return jsonify({'success': True, 'campaign': public_campaign(campaign)})
 
 
+@app.route('/api/plans')
+def get_plans():
+    return jsonify({
+        'success': True,
+        'plans': [
+            {
+                'name': name,
+                'amount': amount,
+                'duration_days': plan_duration_days(name),
+            }
+            for name, amount in PLAN_AMOUNTS.items()
+        ],
+    })
+
+
+@app.route('/api/customer/campaigns')
+def get_customer_campaigns():
+    email = (request.args.get('email') or '').strip().lower()
+    if not email or '@' not in email:
+        return jsonify({'success': False, 'message': 'Enter the email used for your campaign.'}), 400
+
+    db = load_db()
+    campaigns = [
+        public_campaign(c)
+        for c in db.get('campaigns', [])
+        if (c.get('email') or '').strip().lower() == email
+    ]
+    campaigns.sort(key=lambda c: c.get('created_at') or '', reverse=True)
+    return jsonify({
+        'success': True,
+        'email': email,
+        'campaigns': campaigns,
+        'plans': [
+            {
+                'name': name,
+                'amount': amount,
+                'duration_days': plan_duration_days(name),
+            }
+            for name, amount in PLAN_AMOUNTS.items()
+        ],
+    })
+
+
 @app.route('/api/curation')
 def get_curation_campaigns():
     db = load_db()
@@ -779,6 +894,7 @@ def get_admin_data():
         'active_target': db.get('active_target', 'None'),
         'statuses': CAMPAIGN_STATUSES,
         'resend_config': resend_config_status(),
+        'supabase_config': supabase_config_status(),
     })
 
 
@@ -804,6 +920,7 @@ def list_admin_campaigns():
         'stats': stats,
         'statuses': CAMPAIGN_STATUSES,
         'resend_config': resend_config_status(),
+        'supabase_config': supabase_config_status(),
     })
 
 
@@ -815,6 +932,35 @@ def get_admin_campaign(campaign_id):
     if not campaign:
         return jsonify({'success': False, 'message': 'Campaign not found'}), 404
     return jsonify({'success': True, 'campaign': admin_campaign(campaign)})
+
+
+@app.route('/api/admin/test-email', methods=['POST'])
+@admin_required
+def send_test_email():
+    data = request.json or {}
+    recipient = (data.get('email') or os.environ.get('ADMIN_EMAIL', '')).strip()
+    if not recipient:
+        return jsonify({'success': False, 'message': 'Enter a test recipient email or set ADMIN_EMAIL.'}), 400
+
+    subject = 'CreatorLift Resend test'
+    lines = [
+        'This is a test email from CreatorLift.',
+        'If this arrived, your RESEND_API_KEY and RESEND_FROM_EMAIL are working.',
+        f"App URL: {app_base_url()}",
+    ]
+    result = send_creatorlift_email(
+        recipient,
+        subject,
+        '\n\n'.join(lines),
+        html_body=safe_email_html(subject, lines, app_base_url(), 'Open CreatorLift'),
+        tags=[{'name': 'event', 'value': 'admin_test_email'}],
+    )
+    return jsonify({
+        'success': result.get('sent', False),
+        'email_result': result,
+        'resend_config': resend_config_status(),
+        'message': 'Test email sent.' if result.get('sent') else result.get('error', 'Test email was not sent.'),
+    }), 200 if result.get('sent') else 400
 
 
 @app.route('/api/admin/campaigns/<int:campaign_id>/verify-payment', methods=['POST'])

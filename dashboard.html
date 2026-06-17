@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CreatorLift Dashboard</title>
+    <meta name="description" content="CreatorLift customer dashboard for campaign payments, tracking, plans, videos, and promotion timelines.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { min-height: 100vh; background: #050507; }
+        .dash-shell { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 2rem 0 4rem; }
+        .dash-topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 0 2rem; }
+        .dash-brand { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.45rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .dash-grid { display: grid; grid-template-columns: minmax(320px, 390px) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+        .dash-panel { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1.5rem; box-shadow: 0 18px 50px rgba(0,0,0,0.28); }
+        .dash-panel h1, .dash-panel h2, .dash-panel h3 { font-family: 'Outfit', sans-serif; }
+        .dash-panel h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1; margin-bottom: 1rem; }
+        .dash-panel h2 { font-size: 1.35rem; margin-bottom: 0.75rem; }
+        .dash-copy { color: var(--text-secondary); line-height: 1.7; }
+        .dash-form { display: grid; gap: 1rem; margin-top: 1.25rem; }
+        .dash-form label { color: var(--text-secondary); font-size: 0.85rem; display: block; margin-bottom: 0.4rem; }
+        .dash-form input, .dash-form select { width: 100%; padding: 0.95rem 1rem; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: #fff; outline: none; }
+        .dash-form select option { background: #101014; color: #fff; }
+        .dash-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+        .dash-btn { border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); color: #fff; border-radius: 8px; padding: 0.9rem 1.05rem; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; }
+        .dash-btn.primary { border: 0; background: var(--accent-gradient); }
+        .dash-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .stat-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+        .stat-box { border: 1px solid var(--glass-border); background: rgba(255,255,255,0.035); border-radius: 8px; padding: 1rem; min-height: 86px; }
+        .stat-box span { color: var(--text-secondary); font-size: 0.78rem; display: block; margin-bottom: 0.35rem; }
+        .stat-box strong { font-size: 1.25rem; }
+        .campaign-list { display: grid; gap: 1rem; }
+        .campaign-card { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 1rem; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.035); border-radius: 8px; padding: 1rem; }
+        .campaign-card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: #111; }
+        .campaign-main { min-width: 0; }
+        .campaign-main h3 { margin-bottom: 0.45rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .campaign-meta { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 0.65rem; margin: 0.9rem 0; }
+        .campaign-meta div { border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem; background: rgba(0,0,0,0.18); min-height: 70px; }
+        .campaign-meta span { display: block; color: var(--text-secondary); font-size: 0.72rem; margin-bottom: 0.3rem; }
+        .status-pill { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 999px; padding: 0.35rem 0.65rem; font-size: 0.78rem; font-weight: 800; background: rgba(139, 92, 246, 0.14); color: #c4b5fd; }
+        .status-pending_payment { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; }
+        .status-paid_pending_review, .status-approved_for_setup { background: rgba(245, 158, 11, 0.14); color: #fbbf24; }
+        .status-campaign_active { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+        .status-rejected_refunded { background: rgba(239, 68, 68, 0.14); color: #f87171; }
+        .updates { border-top: 1px solid var(--glass-border); padding-top: 0.85rem; margin-top: 0.85rem; color: var(--text-secondary); }
+        .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); border: 1px dashed var(--glass-border); border-radius: 8px; }
+        .notice { display: none; margin-top: 1rem; border-radius: 8px; padding: 0.9rem 1rem; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.1); color: #ddd6fe; }
+        @media (max-width: 880px) {
+            .dash-grid, .campaign-card { grid-template-columns: 1fr; }
+            .stat-strip, .campaign-meta { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 560px) {
+            .stat-strip, .campaign-meta { grid-template-columns: 1fr; }
+            .dash-topbar { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <main class="dash-shell">
+        <div class="dash-topbar">
+            <a href="/" class="dash-brand">CreatorLift</a>
+            <div class="dash-actions">
+                <a href="/track.html" class="dash-btn"><i class="fas fa-location-dot"></i> Track Link</a>
+                <a href="/" class="dash-btn"><i class="fas fa-house"></i> Home</a>
+            </div>
+        </div>
+
+        <section class="dash-grid">
+            <aside class="dash-panel">
+                <h1>Creator Dashboard</h1>
+                <p class="dash-copy">Manage your promotion videos, plans, payments, starting views, and campaign timeline from one place.</p>
+
+                <form id="emailLookupForm" class="dash-form">
+                    <div>
+                        <label for="dashboardEmail">Account email</label>
+                        <input id="dashboardEmail" type="email" placeholder="you@example.com" required>
+                    </div>
+                    <button class="dash-btn primary" type="submit"><i class="fas fa-arrow-right"></i> Open Dashboard</button>
+                </form>
+
+                <div class="notice" id="dashboardNotice"></div>
+
+                <form id="dashboardPaymentForm" class="dash-form" style="margin-top:2rem; display:none;">
+                    <h2>New Promotion</h2>
+                    <div>
+                        <label for="dashPlanSelect">Plan</label>
+                        <select id="dashPlanSelect" required></select>
+                    </div>
+                    <div>
+                        <label for="dashVideoUrl">YouTube video URL</label>
+                        <input id="dashVideoUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." required>
+                    </div>
+                    <div>
+                        <label for="dashViewsBefore">Views before promotion</label>
+                        <input id="dashViewsBefore" type="number" min="0" step="1" placeholder="0">
+                    </div>
+                    <div class="stat-box">
+                        <span>Total due</span>
+                        <strong id="dashTotalDue">NGN 0</strong>
+                    </div>
+                    <button class="dash-btn primary" type="submit"><i class="fas fa-credit-card"></i> Pay & Submit</button>
+                </form>
+            </aside>
+
+            <section>
+                <div class="stat-strip">
+                    <div class="stat-box"><span>Total Campaigns</span><strong id="totalCampaigns">0</strong></div>
+                    <div class="stat-box"><span>Active</span><strong id="activeCampaigns">0</strong></div>
+                    <div class="stat-box"><span>Pending Review</span><strong id="pendingCampaigns">0</strong></div>
+                </div>
+
+                <div class="dash-panel">
+                    <div style="display:flex; justify-content:space-between; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem;">
+                        <div>
+                            <h2>Your Videos</h2>
+                            <p class="dash-copy" id="dashboardSubtitle">Enter your email to load your campaigns.</p>
+                        </div>
+                        <button id="refreshDashboard" class="dash-btn" type="button"><i class="fas fa-rotate"></i> Refresh</button>
+                    </div>
+                    <div id="campaignList" class="campaign-list">
+                        <div class="empty-state">No dashboard loaded yet.</div>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>
