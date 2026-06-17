@@ -452,7 +452,7 @@ def safe_email_html(title, body_lines, action_url=None, action_label='Track Camp
             monetization approval, or revenue.
         </p>
         <p style="color:#9ca3af;font-size:11px;border-top:1px solid #e5e7eb;margin-top:1.5em;padding-top:1em;">
-            CreatorLift By The Accountant
+            Creatorlift By The Accountant
         </p>
     </div>
     """
@@ -465,7 +465,7 @@ def send_email_event(db, campaign, event, recipient, subject, body_lines, action
         'Our campaigns are designed to help creators reach relevant viewers, built to increase exposure and discovery, '
         'and promote content to targeted audiences without promising specific subscriber counts, watch-hour outcomes, '
         'monetization approval, or revenue.',
-        '\n-- CreatorLift By The Accountant'
+        '\n-- Creatorlift By The Accountant'
     ])
     if action_url:
         text_body = f"{text_body}\n\n{action_label}: {action_url}"
