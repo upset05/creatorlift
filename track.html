@@ -153,11 +153,24 @@
                 </div>
             `;
 
+            const badge = campaign.plan_badge || 'PROMOTION PLAN';
+            const duration = campaign.campaign_duration || `${campaign.promotion_duration_days || 4} days`;
+            const features = campaign.plan_features || [];
+            const featuresMarkup = features.length ? `
+                <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 16px;">
+                    <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--primary-glow);">Included Features</h3>
+                    <ul style="list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        ${features.map(f => `<li><i class="fas fa-check" style="color: #22c55e; margin-right: 8px;"></i>${escapeHtml(f)}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : '';
+
             document.getElementById('trackingCard').innerHTML = `
                 <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center;">
                     <div>
+                        <div style="display: inline-block; font-size: 0.72rem; font-weight: 800; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; border: 1px solid var(--glass-border); padding: 0.25rem 0.6rem; border-radius: 999px; margin-bottom: 0.5rem;">${escapeHtml(badge)}</div>
                         <h1>Campaign Tracking</h1>
-                        <p style="color: var(--text-secondary);">Track review, setup, curation, and completion updates.</p>
+                        <p style="color: var(--text-secondary);">${escapeHtml(campaign.plan_description || 'Track review, setup, curation, and completion updates.')}</p>
                     </div>
                     <span class="status-badge"><i class="fas fa-circle"></i>${escapeHtml(statusLabel(campaign.status))}</span>
                 </div>
@@ -169,18 +182,20 @@
                         <div class="tracking-meta">
                             <div><span>Plan</span>${escapeHtml(campaign.plan)}</div>
                             <div><span>Amount Paid</span>NGN ${Number(campaign.amount_paid || 0).toLocaleString()}</div>
-                            <div><span>Curation</span>${campaign.curation_approved ? 'Approved' : 'Not approved yet'}</div>
-                            <div><span>Category</span>${escapeHtml(campaign.curation_category || 'Not assigned')}</div>
+                            <div><span>Duration</span>${escapeHtml(duration)}</div>
+                            <div><span>Curation Access</span>${escapeHtml(campaign.curation_access_type || 'Curation Listing')}</div>
                         </div>
                         <a href="${escapeHtml(campaign.video_url)}" target="_blank" class="btn" style="border: 1px solid var(--glass-border); color: white;">Open YouTube Video</a>
                     </div>
                 </div>
 
+                ${featuresMarkup}
+
                 <h2 style="margin-top: 2.5rem;">Campaign Updates</h2>
                 <div class="update-list">${updateMarkup}</div>
 
                 <p style="color: var(--text-secondary); margin-top: 2rem; font-size: 0.9rem;">
-                    CreatorLift does not guarantee monetization approval, fixed watch hours, subscribers, revenue, or specific audience outcomes.
+                    Our campaigns are designed to help creators reach relevant viewers, built to increase exposure and discovery, and promote content to targeted audiences rather than promising specific counts of subscribers, watch hours, monetization approval, or revenue.
                 </p>
             `;
         }

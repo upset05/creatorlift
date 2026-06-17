@@ -353,7 +353,7 @@
 
             <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 20px; border: 1px solid rgba(139, 92, 246, 0.2);">
                 <h4 style="font-size: 0.75rem; margin-bottom: 1rem; color: var(--text-secondary);">WORKFLOW</h4>
-                <p style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.6;">Review paid campaigns, approve setup, manage curation, and send customer updates without making performance guarantees.</p>
+                <p style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.6;">Review paid campaigns, approve setup, manage curation, and send customer updates to help creators reach relevant viewers and increase content exposure.</p>
             </div>
         </aside>
 
@@ -875,69 +875,138 @@
             const latestEmail = emailActivity[emailActivity.length - 1];
             const resendMissing = window.resendConfig?.missing || [];
             const emailWarning = latestEmail && !latestEmail.sent ? latestEmail.error : '';
+
+            // Rules based on plan
+            const planRules = {
+                'Discovery Campaign': {
+                    allowed: ['Basic Campaign Summary'],
+                    not_allowed: ['Permanent Curation Hub Approval', 'Curation Placement', 'Detailed Strategy Review', 'Optimization Recommendations'],
+                    curation: 'Curation consideration only (Do not automatically approve permanent or priority placement)'
+                },
+                'Starter Campaign': {
+                    allowed: ['Curation Listing (Standard)', 'Campaign Performance Summary'],
+                    not_allowed: ['Priority Curation Placement', 'Detailed Strategy Review', 'Optimization Recommendations'],
+                    curation: 'Standard curation listing'
+                },
+                'Growth Accelerator': {
+                    allowed: ['Priority Curation Consideration', 'Performance Summary', 'Optimization Recommendations'],
+                    not_allowed: ['Permanent Curation Placement', 'Detailed Strategy Review'],
+                    curation: 'Priority curation consideration'
+                },
+                'Professional Campaign': {
+                    allowed: ['Priority Curation Placement', 'Performance Reporting', 'Optimization Recommendations'],
+                    not_allowed: ['Extended Curation Placement', 'Strategy Review'],
+                    curation: 'Priority curation placement'
+                },
+                'Agency Partnership': {
+                    allowed: ['Full Campaign Planning', 'Extended Curation Placement', 'Detailed Performance Report', 'Strategy Review'],
+                    not_allowed: [],
+                    curation: 'Extended curation placement (Managed)'
+                }
+            };
+
+            const rule = planRules[campaign.plan] || planRules['Discovery Campaign'];
+            const allowedMarkup = rule.allowed.map(a => `<li><i class="fas fa-check" style="color:#22c55e;"></i> ${a}</li>`).join('');
+            const notAllowedMarkup = rule.not_allowed.map(na => `<li><i class="fas fa-times" style="color:#ef4444;"></i> ${na}</li>`).join('');
+
             panel.innerHTML = `
-                <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:center;">
+                <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:1.5rem; margin-bottom:2rem;">
                     <div>
-                        <h3 style="font-family:'Outfit'; margin-bottom:0.35rem;">Campaign #${campaign.id}</h3>
-                        <span class="status-pill status-${escapeHtml(campaign.status)}">${statusLabel(campaign.status)}</span>
+                        <div style="display:inline-block; font-size:0.75rem; font-weight:800; background:var(--accent-gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; border:1px solid var(--glass-border); padding:0.25rem 0.6rem; border-radius:999px; margin-bottom:0.5rem;">
+                            ${escapeHtml(campaign.plan_badge || 'ACTIVE')}
+                        </div>
+                        <h3 style="font-family:'Outfit'; font-size:1.8rem; margin:0;">Campaign #${campaign.id}</h3>
+                        <span class="status-pill status-${escapeHtml(campaign.status)}" style="margin-top:0.5rem; display:inline-block;">${statusLabel(campaign.status)}</span>
                         ${emailWarning ? `<div style="margin-top:0.75rem; color:#f59e0b; font-size:0.9rem;">Email warning: ${escapeHtml(emailWarning)}</div>` : ''}
                         ${resendMissing.length ? `<div style="margin-top:0.75rem; color:#f59e0b; font-size:0.9rem;">Resend config missing: ${escapeHtml(resendMissing.join(', '))}</div>` : ''}
                     </div>
                     <div class="button-row" style="margin-top:0;">
-                        <a href="${escapeHtml(campaign.video_url)}" target="_blank" class="action-btn" style="padding:0.7rem 1rem; text-decoration:none;">Open Video</a>
-                        <a href="${escapeHtml(campaign.tracking_url)}" target="_blank" class="action-btn" style="padding:0.7rem 1rem; text-decoration:none;">Tracking Page</a>
+                        <a href="${escapeHtml(campaign.video_url)}" target="_blank" class="action-btn" style="padding:0.7rem 1.2rem; text-decoration:none; display:inline-flex; align-items:center; gap:0.5rem;"><i class="fab fa-youtube"></i> Open Video</a>
+                        <a href="${escapeHtml(campaign.tracking_url)}" target="_blank" class="action-btn" style="padding:0.7rem 1.2rem; text-decoration:none; display:inline-flex; align-items:center; gap:0.5rem;"><i class="fas fa-location-dot"></i> Tracking Page</a>
                     </div>
                 </div>
 
                 <div class="detail-grid">
                     <div>
-                        <img class="detail-thumb" src="${escapeHtml(campaign.thumbnail)}" alt="">
-                        <div class="button-row">
-                            <button onclick="setCampaignStatus(${campaign.id}, 'approved_for_setup')" class="action-btn" style="padding:0.7rem 1rem;">Approve</button>
-                            <button onclick="rejectCampaign(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem; border-color:#ef4444; color:#ef4444;">Reject</button>
+                        <img class="detail-thumb" src="${escapeHtml(campaign.thumbnail)}" alt="" style="width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:16px; border:1px solid var(--glass-border); margin-bottom:1.5rem;">
+                        <div class="button-row" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:0.5rem;">
+                            <button onclick="setCampaignStatus(${campaign.id}, 'approved_for_setup')" class="action-btn" style="padding:0.7rem 1rem;">Approve Setup</button>
+                            <button onclick="rejectCampaign(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem; border-color:#ef4444; color:#ef4444;">Reject / Refund</button>
                             <button onclick="setCampaignStatus(${campaign.id}, 'campaign_active')" class="action-btn" style="padding:0.7rem 1rem;">Mark Active</button>
                             <button onclick="setCampaignStatus(${campaign.id}, 'campaign_completed')" class="action-btn" style="padding:0.7rem 1rem;">Complete</button>
                         </div>
                     </div>
                     <div>
-                        <div class="meta-grid">
-                            <div class="meta-box"><span>Email</span>${escapeHtml(campaign.email)}</div>
-                            <div class="meta-box"><span>Plan</span>${escapeHtml(campaign.plan)}</div>
-                            <div class="meta-box"><span>Amount Paid</span>${formatMoney(campaign.amount_paid)}</div>
-                            <div class="meta-box"><span>Paystack Reference</span>${escapeHtml(campaign.paystack_reference || 'Not verified')}</div>
-                            <div class="meta-box"><span>Video ID</span>${escapeHtml(campaign.video_id)}</div>
-                            <div class="meta-box"><span>Tracking Code</span>${escapeHtml(campaign.tracking_code)}</div>
-                            <div class="meta-box"><span>Last Email</span>${latestEmail ? `${latestEmail.sent ? 'Sent' : 'Failed'} - ${escapeHtml(latestEmail.event || latestEmail.subject)}` : 'No email activity yet'}</div>
+                        <div class="meta-grid" style="margin-top:0;">
+                            <div class="meta-box" style="border-left: 4px solid var(--primary-glow);"><span>Customer Email</span><strong style="font-size:1.05rem;">${escapeHtml(campaign.email)}</strong></div>
+                            <div class="meta-box" style="border-left: 4px solid var(--secondary-glow);"><span>Selected Plan</span><strong style="font-size:1.05rem;">${escapeHtml(campaign.plan)}</strong></div>
+                            <div class="meta-box" style="border-left: 4px solid #22c55e;"><span>Amount Paid</span><strong style="font-size:1.05rem;">${formatMoney(campaign.amount_paid)}</strong></div>
+                            <div class="meta-box"><span>Paystack Reference</span><code style="display:block; margin-top:0.25rem; font-size:0.85rem;">${escapeHtml(campaign.paystack_reference || 'Not verified')}</code></div>
+                            <div class="meta-box"><span>YouTube Video ID</span><code>${escapeHtml(campaign.video_id)}</code></div>
+                            <div class="meta-box"><span>Duration Goal</span><strong>${escapeHtml(campaign.campaign_duration || (campaign.promotion_duration_days + ' days'))}</strong></div>
                         </div>
 
-                        <label style="display:block; color:var(--text-secondary); margin-bottom:0.5rem;">Internal admin notes</label>
-                        <textarea id="adminNotes" class="admin-textarea">${escapeHtml(campaign.admin_notes)}</textarea>
-                        <div class="button-row">
-                            <button onclick="saveAdminNotes(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem;">Save Notes</button>
-                            <button onclick="verifyPayment(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem;">Verify Paystack</button>
-                        </div>
-
-                        <div style="margin-top:2rem;">
-                            <label style="display:block; color:var(--text-secondary); margin-bottom:0.5rem;">Customer-facing campaign update</label>
-                            <textarea id="customerUpdate" class="admin-textarea" placeholder="Write an update the creator can see on the tracking page..."></textarea>
-                            <div class="button-row">
-                                <button onclick="addCustomerUpdate(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem;">Add Update & Email</button>
-                                <button onclick="resendUpdateEmail(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem;">Resend Update Email</button>
+                        <!-- Deliverables Scope Section -->
+                        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:18px; padding:1.5rem; margin-bottom:2rem;">
+                            <h4 style="font-family:'Outfit'; font-size:1.1rem; margin-top:0; margin-bottom:1rem; color:var(--primary-glow);">Plan Scope & Curation Rules</h4>
+                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem;">
+                                <div>
+                                    <h5 style="margin:0 0 0.5rem; color:#fff;">Allowed / Included</h5>
+                                    <ul style="list-style:none; padding:0; margin:0; font-size:0.85rem; color:var(--text-secondary); display:grid; gap:0.4rem;">
+                                        ${allowedMarkup}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h5 style="margin:0 0 0.5rem; color:#fff;">Not Included</h5>
+                                    <ul style="list-style:none; padding:0; margin:0; font-size:0.85rem; color:var(--text-secondary); display:grid; gap:0.4rem;">
+                                        ${notAllowedMarkup.length ? notAllowedMarkup : '<li>None</li>'}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div style="margin-top:1rem; padding-top:1rem; border-top:1px dashed var(--glass-border); font-size:0.85rem; color:var(--text-secondary);">
+                                <strong>Curation Policy:</strong> ${escapeHtml(rule.curation)}
                             </div>
                         </div>
 
-                        <div style="margin-top:2rem;">
-                            <h4 style="margin-bottom:0.75rem;">Curation Hub Placement</h4>
-                            <label style="display:flex; align-items:center; gap:0.6rem; color:var(--text-secondary); margin-bottom:0.75rem;">
-                                <input type="checkbox" id="curationApproved" ${campaign.curation_approved ? 'checked' : ''}>
-                                Approved for public curation hub
-                            </label>
-                            <input id="curationCategory" class="admin-input" placeholder="Niche / category" value="${escapeHtml(campaign.curation_category)}">
-                            <button onclick="saveCuration(${campaign.id})" class="action-btn" style="padding:0.7rem 1rem; margin-top:0.75rem;">Save Curation</button>
+                        <!-- Visually Separated Notes and Update Blocks -->
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; margin-bottom:2rem;">
+                            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:18px; padding:1.5rem;">
+                                <h4 style="font-family:'Outfit'; font-size:1.1rem; margin-top:0; margin-bottom:0.75rem;"><i class="fas fa-clipboard"></i> Admin Notes (Internal)</h4>
+                                <textarea id="adminNotes" class="admin-textarea" style="height:120px; font-size:0.9rem;">${escapeHtml(campaign.admin_notes)}</textarea>
+                                <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+                                    <button onclick="saveAdminNotes(${campaign.id})" class="action-btn" style="padding:0.6rem 1rem; font-size:0.85rem;">Save Notes</button>
+                                    <button onclick="verifyPayment(${campaign.id})" class="action-btn" style="padding:0.6rem 1rem; font-size:0.85rem;">Verify Paystack</button>
+                                </div>
+                            </div>
+
+                            <div style="background:rgba(139, 92, 246, 0.05); border:1px solid rgba(139, 92, 246, 0.2); border-radius:18px; padding:1.5rem;">
+                                <h4 style="font-family:'Outfit'; font-size:1.1rem; margin-top:0; margin-bottom:0.75rem;"><i class="fas fa-bullhorn"></i> Customer Update (Public)</h4>
+                                <textarea id="customerUpdate" class="admin-textarea" style="height:120px; font-size:0.9rem;" placeholder="Write an update the customer can see on the tracking page..."></textarea>
+                                <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+                                    <button onclick="addCustomerUpdate(${campaign.id})" class="action-btn" style="padding:0.6rem 1rem; font-size:0.85rem;">Send Update</button>
+                                    <button onclick="resendUpdateEmail(${campaign.id})" class="action-btn" style="padding:0.6rem 1rem; font-size:0.85rem;">Resend Email</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Curation Control Card -->
+                        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); border-radius:18px; padding:1.5rem; margin-bottom:2rem;">
+                            <h4 style="font-family:'Outfit'; font-size:1.1rem; margin-top:0; margin-bottom:1rem;"><i class="fas fa-video"></i> Curation Hub Listing</h4>
+                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:1.5rem; align-items:center;">
+                                <label style="display:flex; align-items:center; gap:0.6rem; color:var(--text-secondary); cursor:pointer;">
+                                    <input type="checkbox" id="curationApproved" ${campaign.curation_approved ? 'checked' : ''} style="width:18px; height:18px;">
+                                    <strong>Listed in Curation Network</strong>
+                                </label>
+                                <div>
+                                    <label style="display:block; font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.25rem;">Listing Category</label>
+                                    <input id="curationCategory" class="admin-input" placeholder="e.g. Gaming, Tech, Music" value="${escapeHtml(campaign.curation_category)}" style="margin:0;">
+                                </div>
+                            </div>
+                            <button onclick="saveCuration(${campaign.id})" class="action-btn primary" style="padding:0.65rem 1.2rem; font-size:0.85rem; margin-top:1rem; border:0; background:var(--accent-gradient);">Save Curation Settings</button>
                         </div>
 
                         <div style="margin-top:2rem;">
-                            <h4>Customer Updates</h4>
+                            <h4 style="margin-bottom:0.75rem;">Customer Updates History</h4>
                             <div class="update-log">
                                 ${updates.length ? updates.map(update => `
                                     <div class="update-log-item">
@@ -949,7 +1018,7 @@
                         </div>
 
                         <div style="margin-top:2rem;">
-                            <h4>Email Activity</h4>
+                            <h4 style="margin-bottom:0.75rem;">Email Notification History</h4>
                             <div class="update-log">
                                 ${emailActivity.length ? emailActivity.slice().reverse().map(item => `
                                     <div class="update-log-item">

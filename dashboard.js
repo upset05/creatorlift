@@ -124,7 +124,13 @@ function renderCampaigns() {
         return;
     }
 
-    elements.list.innerHTML = state.campaigns.map((campaign) => `
+    elements.list.innerHTML = state.campaigns.map((campaign) => {
+        const badge = campaign.plan_badge || 'ACTIVE';
+        const duration = campaign.campaign_duration || `${campaign.promotion_duration_days || 4} days`;
+        const features = campaign.plan_features || [];
+        const featuresList = features.length ? features.join(', ') : 'Basic promotion setup';
+        
+        return `
         <article class="campaign-card">
             <img src="${escapeHtml(campaign.thumbnail)}" alt="">
             <div class="campaign-main">
@@ -133,11 +139,14 @@ function renderCampaigns() {
                     <span class="status-pill status-${escapeHtml(campaign.status)}">${escapeHtml(statusLabel(campaign.status))}</span>
                 </div>
                 <div class="campaign-meta">
-                    <div><span>Plan</span>${escapeHtml(campaign.plan)}</div>
+                    <div><span>Plan</span>${escapeHtml(campaign.plan)} <strong style="font-size: 0.75rem; color: var(--primary-glow); display: block; margin-top: 0.2rem;">${escapeHtml(badge)}</strong></div>
                     <div><span>Paid</span>${formatMoney(campaign.amount_paid || 0)}</div>
-                    <div><span>Views Before</span>${Number(campaign.views_before || 0).toLocaleString()}</div>
+                    <div><span>Duration</span>${escapeHtml(duration)}</div>
                     <div><span>Countdown</span>${escapeHtml(countdownText(campaign))}</div>
                 </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0.5rem 0 1rem; line-height: 1.4;">
+                    <strong>Included:</strong> ${escapeHtml(featuresList)}
+                </p>
                 <div class="dash-actions">
                     <a class="dash-btn" href="${escapeHtml(campaign.tracking_url)}" target="_blank"><i class="fas fa-location-dot"></i> Track</a>
                     <a class="dash-btn" href="${escapeHtml(campaign.video_url)}" target="_blank"><i class="fab fa-youtube"></i> Video</a>
@@ -146,7 +155,8 @@ function renderCampaigns() {
                 <div class="updates">${escapeHtml(latestUpdate(campaign))}</div>
             </div>
         </article>
-    `).join('');
+        `;
+    }).join('');
 }
 
 async function loadPlans() {

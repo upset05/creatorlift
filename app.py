@@ -10,6 +10,7 @@ import uuid
 import requests
 from email_service import resend_config_status, send_creatorlift_email
 from storage_service import load_state_from_supabase, save_state_to_supabase, supabase_config_status
+from plans_config import PLANS
 
 app = Flask(__name__, static_folder='.')
 CORS(app)
@@ -33,21 +34,8 @@ CAMPAIGN_STATUSES = [
     'campaign_completed',
 ]
 
-PLAN_AMOUNTS = {
-    'Discovery Campaign': 5000,
-    'Starter Campaign': 10000,
-    'Growth Accelerator': 15000,
-    'Professional Campaign': 45000,
-    'Agency Partnership': 85000,
-}
-
-PLAN_DURATIONS = {
-    'Discovery Campaign': 4,
-    'Starter Campaign': 5,
-    'Growth Accelerator': 10,
-    'Professional Campaign': 14,
-    'Agency Partnership': 30,
-}
+PLAN_AMOUNTS = {name: info['price'] for name, info in PLANS.items()}
+PLAN_DURATIONS = {name: info['duration_days'] for name, info in PLANS.items()}
 
 
 def now_iso():
@@ -208,7 +196,9 @@ def campaign_from_legacy_order(order, fallback_id):
 def ensure_campaign_shape(campaign, fallback_id):
     changed = False
     video_id = extract_youtube_video_id(campaign.get('video_url', '')) or campaign.get('video_id', '')
-    plan = normalize_plan(campaign.get('plan', 'Starter Campaign'))
+    plan = normalize_plan(campaign.get('plan', 'Discovery Campaign'))
+    plan_info = PLANS.get(plan, PLANS['Discovery Campaign'])
+    
     defaults = {
         'id': fallback_id,
         'tracking_code': make_tracking_code(),
@@ -240,6 +230,14 @@ def ensure_campaign_shape(campaign, fallback_id):
         'paystack_data': {},
         'email_activity': [],
         'email_warnings': [],
+        'plan_name': plan,
+        'plan_price': plan_info['price'],
+        'plan_badge': plan_info['badge'],
+        'plan_description': plan_info['description'],
+        'plan_features': plan_info['features'],
+        'campaign_duration': plan_info['duration'],
+        'support_level': plan_info['support_level'],
+        'curation_access_type': plan_info['curation_access_type'],
     }
     for key, value in defaults.items():
         if key not in campaign:
@@ -248,9 +246,19 @@ def ensure_campaign_shape(campaign, fallback_id):
     if campaign.get('status') not in CAMPAIGN_STATUSES:
         campaign['status'] = 'paid_pending_review' if campaign.get('amount_paid') else 'pending_payment'
         changed = True
-    if campaign.get('plan') != plan:
+    if (campaign.get('plan') != plan or
+        'plan_name' not in campaign or
+        campaign.get('plan_price') != plan_info['price']):
         campaign['plan'] = plan
         campaign['amount_expected'] = plan_amount(plan)
+        campaign['plan_name'] = plan
+        campaign['plan_price'] = plan_info['price']
+        campaign['plan_badge'] = plan_info['badge']
+        campaign['plan_description'] = plan_info['description']
+        campaign['plan_features'] = plan_info['features']
+        campaign['campaign_duration'] = plan_info['duration']
+        campaign['support_level'] = plan_info['support_level']
+        campaign['curation_access_type'] = plan_info['curation_access_type']
         if not campaign.get('promotion_duration_days'):
             campaign['promotion_duration_days'] = plan_duration_days(plan)
         changed = True
@@ -365,6 +373,14 @@ def public_campaign(campaign):
         'curation_approved': campaign.get('curation_approved', False),
         'curation_category': campaign.get('curation_category', ''),
         'tracking_url': tracking_url_for(campaign),
+        'plan_name': campaign.get('plan_name'),
+        'plan_price': campaign.get('plan_price'),
+        'plan_badge': campaign.get('plan_badge'),
+        'plan_description': campaign.get('plan_description'),
+        'plan_features': campaign.get('plan_features', []),
+        'campaign_duration': campaign.get('campaign_duration'),
+        'support_level': campaign.get('support_level'),
+        'curation_access_type': campaign.get('curation_access_type'),
     }
 
 
@@ -430,9 +446,10 @@ def safe_email_html(title, body_lines, action_url=None, action_label='Track Camp
         {paragraphs}
         {action}
         <p style="color:#6b7280;font-size:13px;">
-            Results vary based on campaign settings, niche, content quality, audience interest,
-            and platform systems. CreatorLift does not guarantee subscribers, watch hours,
-            monetization approval, revenue, or income.
+            Results vary based on content quality, niche, audience interest, campaign settings, and viewer response.
+            Our campaigns are designed to help creators reach relevant viewers, built to increase exposure and discovery,
+            and promote content to targeted audiences without promising specific subscriber counts, watch-hour outcomes,
+            monetization approval, or revenue.
         </p>
     </div>
     """
@@ -441,8 +458,10 @@ def safe_email_html(title, body_lines, action_url=None, action_label='Track Camp
 def send_email_event(db, campaign, event, recipient, subject, body_lines, action_url=None, action_label='Track Campaign'):
     text_body = '\n\n'.join(body_lines + [
         '',
-        'Results vary based on campaign settings, niche, content quality, audience interest, and platform systems. '
-        'CreatorLift does not guarantee subscribers, watch hours, monetization approval, revenue, or income.'
+        'Results vary based on content quality, niche, audience interest, campaign settings, and viewer response. '
+        'Our campaigns are designed to help creators reach relevant viewers, built to increase exposure and discovery, '
+        'and promote content to targeted audiences without promising specific subscriber counts, watch-hour outcomes, '
+        'monetization approval, or revenue.'
     ])
     if action_url:
         text_body = f"{text_body}\n\n{action_label}: {action_url}"
@@ -478,57 +497,80 @@ def send_email_event(db, campaign, event, recipient, subject, body_lines, action
 
 def campaign_email_copy(campaign, event, reason=''):
     track_url = tracking_url_for(campaign)
-    plan = campaign.get('plan', 'CreatorLift campaign')
+    plan_name = campaign.get('plan', 'Discovery Campaign')
+    plan_info = PLANS.get(plan_name, PLANS['Discovery Campaign'])
+    
+    duration = plan_info.get('duration', '2 to 4 days')
+    features = plan_info.get('features', [])
+    features_list = ", ".join(features[:3]) + " (and more)" if len(features) > 3 else ", ".join(features)
+    
     copies = {
         'campaign_submitted_for_review': {
-            'subject': 'CreatorLift campaign received',
+            'subject': f'CreatorLift: {plan_name} received',
             'lines': [
-                f"Your {plan} has been received and is pending payment or review.",
-                "Our team will review your submitted video and campaign details before setup.",
+                f"Your {plan_name} has been received and is pending payment or review.",
+                f"Plan duration: {duration}.",
+                f"Included benefits: {features_list}.",
+                "Our team will review your submitted video and campaign details to help you reach relevant viewers, increase exposure, and promote content to targeted audiences.",
+                f"Tracking link: {track_url}"
             ],
         },
         'payment_received': {
-            'subject': 'Payment received - CreatorLift campaign review',
+            'subject': f'Payment received - CreatorLift: {plan_name} review',
             'lines': [
-                f"We received your payment for {plan}.",
-                "Your campaign has been received and is pending review.",
-                "If eligible, our team will prepare the campaign setup and keep you updated.",
+                f"We received your payment for {plan_name}.",
+                f"Plan duration: {duration}.",
+                f"Included benefits: {features_list}.",
+                "Your campaign is pending review. If eligible, our team will prepare the campaign setup to increase discovery and promote content to targeted audiences.",
+                f"Tracking link: {track_url}"
             ],
         },
         'campaign_approved': {
-            'subject': 'CreatorLift campaign approved for setup',
+            'subject': f'CreatorLift: {plan_name} approved for setup',
             'lines': [
-                "Your campaign has been approved for setup.",
-                "Our team will prepare the campaign using compliant promotional methods.",
-                "Performance depends on campaign settings, niche, content quality, and audience response.",
+                f"Your {plan_name} has been approved for setup.",
+                f"Plan duration: {duration}.",
+                f"Included benefits: {features_list}.",
+                "Our team is setting up your campaign using compliant promotional methods designed to help you reach relevant viewers and increase exposure.",
+                f"Tracking link: {track_url}"
             ],
         },
         'campaign_rejected': {
-            'subject': 'CreatorLift campaign review update',
+            'subject': f'CreatorLift: {plan_name} review update',
             'lines': [
-                "Your campaign was not approved for launch after review.",
-                "If payment was captured, the refund request will be reviewed based on campaign status.",
+                f"Your {plan_name} was not approved for launch after review.",
                 f"Review note: {reason or campaign.get('reject_reason') or 'Campaign was not eligible for promotion.'}",
+                "If payment was captured, the refund request will be reviewed based on campaign status.",
+                f"Tracking link: {track_url}"
             ],
         },
         'campaign_active': {
-            'subject': 'CreatorLift campaign is active',
+            'subject': f'CreatorLift: {plan_name} is active',
             'lines': [
-                "Your campaign has been marked active.",
-                "You can monitor performance inside your YouTube Studio and follow campaign updates on your tracking page.",
-                "Performance depends on campaign settings, niche, content quality, and audience response.",
+                f"Your {plan_name} is now active.",
+                f"Plan duration: {duration}.",
+                f"Included benefits: {features_list}.",
+                "Your promotion is live! We are actively targeting relevant audiences to increase discovery and exposure for your video.",
+                f"Tracking link: {track_url}"
             ],
         },
         'campaign_completed': {
-            'subject': 'CreatorLift campaign completed',
+            'subject': f'CreatorLift: {plan_name} completed',
             'lines': [
-                "Your campaign has been marked completed.",
-                "Please review your campaign updates and YouTube Studio analytics for performance details.",
-                "Results vary based on content quality, niche, audience interest, campaign settings, and YouTube systems.",
+                f"Your {plan_name} has been completed.",
+                f"Plan duration: {duration}.",
+                "We hope this campaign helped increase discovery and reach targeted audiences for your video. Thank you for partnering with us!",
+                f"Tracking link: {track_url}"
             ],
         },
     }
-    copy = copies[event]
+    copy = copies.get(event, {
+        'subject': 'CreatorLift Campaign Update',
+        'lines': [
+            f"Update for your {plan_name}.",
+            f"Tracking link: {track_url}"
+        ]
+    })
     return copy['subject'], copy['lines'], track_url
 
 
@@ -605,6 +647,7 @@ def create_campaign(data):
         return None, 'Enter a valid YouTube video, Shorts, live, or embed URL'
 
     created_at = now_iso()
+    plan_info = PLANS.get(plan, PLANS['Discovery Campaign'])
     campaign = {
         'id': None,
         'tracking_code': make_tracking_code(),
@@ -636,6 +679,14 @@ def create_campaign(data):
         'paystack_data': {},
         'email_activity': [],
         'email_warnings': [],
+        'plan_name': plan,
+        'plan_price': plan_info['price'],
+        'plan_badge': plan_info['badge'],
+        'plan_description': plan_info['description'],
+        'plan_features': plan_info['features'],
+        'campaign_duration': plan_info['duration'],
+        'support_level': plan_info['support_level'],
+        'curation_access_type': plan_info['curation_access_type'],
     }
     return campaign, ''
 
@@ -841,10 +892,16 @@ def get_plans():
         'plans': [
             {
                 'name': name,
-                'amount': amount,
-                'duration_days': plan_duration_days(name),
+                'amount': info['price'],
+                'duration_days': info['duration_days'],
+                'badge': info['badge'],
+                'description': info['description'],
+                'duration': info['duration'],
+                'support_level': info['support_level'],
+                'curation_access_type': info['curation_access_type'],
+                'features': info['features']
             }
-            for name, amount in PLAN_AMOUNTS.items()
+            for name, info in PLANS.items()
         ],
     })
 
